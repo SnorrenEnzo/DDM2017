@@ -11,7 +11,7 @@ sns.set()
 plt.rc('text', usetex=True)
 
 
-def question1a(t, key, bwrange, title, savename = 'fig.svg', xlabel = 'Xlabel'):
+def applyKDE(t, key, bwrange, title, savename = None, xlabel = 'Xlabel'):
 	#t = Table().read('joint-bh-mass-table.csv')
 	
 	X_plot = np.linspace(np.min(t[key]) - 1, np.max(t[key]) + 1, num = 1000)[:, np.newaxis]
@@ -43,7 +43,8 @@ def question1a(t, key, bwrange, title, savename = 'fig.svg', xlabel = 'Xlabel'):
 	plt.legend(loc = 'best')
 	
 	plt.title(title)
-	plt.savefig(savename)
+	if savename is not None:
+		plt.savefig(savename)
 	plt.show()
 	
 	"""
@@ -110,7 +111,7 @@ def question2():
 	#plt.scatter(X[:,0], np.zeros(len(X[:,0])), marker = 'x', color = 'black')
 	
 	#different values for the bandwidth
-	bwrange = np.linspace(0.5, 5, num = 40)
+	bwrange = np.linspace(0.03, 1.5, num = 40)
 	
 	#plot many lines using colors from a color map, with MAX the amount of lines
 	#jet = plt.get_cmap('jet') 
@@ -122,6 +123,7 @@ def question2():
 	
 	likelyhood = np.zeros(len(bwrange))
 	
+	print('Finding the best bandwidth...')
 	for bw, i in zip(bwrange, np.arange(len(bwrange))):
 		lh = []
 		for train_i, test_i in kf.split(X):
@@ -136,9 +138,11 @@ def question2():
 			lh = np.append(lh, lhscore)
 			
 		likelyhood[i] = np.mean(lh)
-			
-	print('Highest likelyhood ({0}) at bandwidth = {1}'.format(round(np.max(likelyhood), 2), bwrange[np.argmax(likelyhood)]))
 	
+	bestbandwidth = bwrange[np.argmax(likelyhood)]
+	print('Highest likelyhood ({0}) at bandwidth = {1}'.format(round(np.max(likelyhood), 2), bestbandwidth))
+	
+	'''
 	plt.plot(bwrange, likelyhood, color = 'black', alpha = 0.8, label = 'Likelyhood')
 	plt.scatter(bwrange[np.argmax(likelyhood)], np.max(likelyhood), marker = 'x', s = 100, color = 'orange', label = 'Maximum likelyhood')
 	
@@ -146,17 +150,45 @@ def question2():
 	plt.ylabel('Likelyhood')
 	plt.legend(loc = 'best')
 	
-	plt.title('Black hole mass density distribution')
-	#plt.savefig('Neutronstar-kde-bandwidth-likelyhood.svg')
+	plt.title('Neutron star mass density distribution')
+	plt.savefig('Neutronstar-kde-bandwidth-likelyhood.svg')
 	plt.show()
+	'''
+	print('Obtaining probabilities')
+	#using this found bandwidth, calculate the probability of the mass ranges
+	kde = KernelDensity(bandwidth = bestbandwidth, kernel = 'gaussian').fit(X)
+	#obtain the density
+	dens = np.exp(kde.score_samples(X_plot))
+	
+	print('\n\nA\n')
+	inner1 = 1.8
+	stepsize = np.abs(X_plot[:,0][1] - X_plot[:,0][2])
+	prob1 = np.sum(dens[X_plot[:,0] > inner1] * stepsize)
+	print('Probability of finding a neutron star with M > {0}: {1}'.format(inner1, prob1))
+	print('\n\nB\n')
+	
+	inner2 = 1.36
+	outer2 = 2.26
+	prob2 = np.sum(dens[(X_plot[:,0] > inner2) * (X_plot[:,0] < outer2)] * stepsize)
+	print('Probability of finding a neutron star with {0} < M < {1}: {2}'.format(inner2, outer2, prob2))
+	
+	inner3 = 0.86
+	outer3 = 1.36
+	prob3 = np.sum(dens[(X_plot[:,0] > inner3) * (X_plot[:,0] < outer3)] * stepsize)
+	print('Probability of finding a neutron star with {0} < M < {1}: {2}'.format(inner3, outer3, prob3))
+	
+	print('Probability of finding this bindary: {0}'.format(prob2 * prob3))
+	
 
 def main():
-
-	question1a(Table().read('pulsar_masses.vot'), 'Mass', 
-						np.linspace(0.05, 1.5, num = 7), 
-						'Black hole mass density distribution', 
-						savename = 'Neutronstar-kde-bandwidth.svg', 
-						xlabel = 'Black hole mass [$10^6$ M$_{\odot}$]')
+	'''
+	applyKDE(Table().read('pulsar_masses.vot'), 'Mass', 
+						[0.1807692], 
+						'Neutron star mass density distribution', 
+						xlabel = 'Neutron star mass [M$_{\odot}$]',
+						savename = 'Neutronstar-kde-best-bandwidth.svg')
+	'''
 	
+	question2()
 if __name__ == "__main__":
 	main()
