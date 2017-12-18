@@ -4,11 +4,13 @@ import numpy as np
 from astropy.table import Table
 import sqlite3 as lite
 import pandas
-#for finding things in strings
-import re
+#for checking if something is nan
+import math
 
 #name of the database
 db_name = "survey_database.db"
+#location of the tables which have to be imported
+dataloc = 'Tables/'
 
 def makeFileList(mypath, extension):
 	"""
@@ -104,13 +106,20 @@ def fillTable(dbn, data, keys, tablename):
 		#fill the table
 		for i in np.arange(len(data[keys[0]])):
 			insertcommand = "INSERT INTO {0} VALUES(".format(tablename)
+			
 			#add all the values from the data array row
 			for key, j in zip(keys, np.arange(nkeys)):
-				if type(data[key][i]) == np.str_:
+				#check if there is a nan in the row. If so, we have to adjust the 
+				#insert command
+				if type(data[key][i]) != np.str_ and math.isnan(data[key][i]):
+					insertcommand += "NULL"
+				#check if we have to add quotations around the data
+				elif type(data[key][i]) == np.str_:
 					insertcommand += "'" + data[key][i] + "'"
 				else:
 					insertcommand += str(data[key][i])
 				
+				#add commas to seperate the different values
 				if j < (nkeys - 1):
 					insertcommand += ","
 				
@@ -128,18 +137,19 @@ csv_data = Table.read('Tables/file_info_for_problem.csv')
 fillTable(db_name, csv_data, allkeys['FieldInfo'], 'FieldInfo')
 
 #make a list of the filenames of the fits files
-filelist = makeFileList('Tables/', '.fits')
+filelist = makeFileList(dataloc, '.fits')
 
 #read a single fits file
 fname = 'Tables/Field-1-Ks-E001.fits'
 tabledata = Table.read(fname)
+
 #find the field ID
-fID = int(re.search(r'\d+', fname).group())
+fID = int(fname[len(dataloc):].split('-')[1])
 #add the field ID to the table
 tabledata['FieldID'] = np.tile([fID], len(tabledata[allkeys['PosData'][0]]))
-#insert the data into the two other tables
+#insert the data in the PosData and FluxData tables
 fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
-
+fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
 #print(data.keys())
 
 
@@ -149,7 +159,7 @@ with con:
 	cur = con.cursor()
 
 	#check if the data is inserted properly in the table
-	rows = con.execute('SELECT * FROM PosData')
+	rows = con.execute('SELECT * FROM FieldInfo')
 	for row in rows:
 		print(row)
 
