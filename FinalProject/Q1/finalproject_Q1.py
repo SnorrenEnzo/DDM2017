@@ -9,8 +9,6 @@ import math
 
 #name of the database
 db_name = "survey_database.db"
-#location of the tables which have to be imported
-dataloc = 'Tables/'
 
 def makeFileList(mypath, extension):
 	"""
@@ -125,42 +123,47 @@ def fillTable(dbn, data, keys, tablename):
 				
 			#close the command with a bracket
 			insertcommand += ")"
-
+			
 			cur.execute(insertcommand)
 			
-	
-allkeys, tablenames = createDB()
+def fillDataBase(dataloc = 'Tables/'):
+	"""
+	Fill the database with data from fits tables in the folder 'Tables/'
+	"""
+		
+	allkeys, tablenames = createDB()
 
-#load the csv
-csv_data = Table.read('Tables/file_info_for_problem.csv')
-#fill the 'FieldInfo' table with the data from the csv
-fillTable(db_name, csv_data, allkeys['FieldInfo'], 'FieldInfo')
+	#load the csv
+	csv_data = Table.read('Tables/file_info_for_problem.csv')
+	#fill the 'FieldInfo' table with the data from the csv
+	fillTable(db_name, csv_data, allkeys['FieldInfo'], 'FieldInfo')
 
-#make a list of the filenames of the fits files
-filelist = makeFileList(dataloc, '.fits')
+	#make a list of the filenames of the fits files
+	filelist = makeFileList(dataloc, '.fits')
+	flistlength = len(filelist)
+	#loop over all the found filenames
+	for fname, i in zip(filelist, np.arange(flistlength)):
+		print('Loading file {0}/{1}...'.format(i+1, flistlength))
 
-#read a single fits file
-fname = 'Tables/Field-1-Ks-E001.fits'
-tabledata = Table.read(fname)
+		tabledata = Table.read(fname)
 
-#find the field ID
-fID = int(fname[len(dataloc):].split('-')[1])
-#add the field ID to the table
-tabledata['FieldID'] = np.tile([fID], len(tabledata[allkeys['PosData'][0]]))
-#insert the data in the PosData and FluxData tables
-fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
-fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
-#print(data.keys())
+		#find the field ID
+		fID = int(fname[len(dataloc):].split('-')[1])
+		#add the field ID to the table
+		tabledata['FieldID'] = np.tile([fID], len(tabledata[allkeys['PosData'][0]]))
+		#insert the data in the PosData and FluxData tables
+		fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
+		fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
 
-
+'''
 #open the database
 con = lite.connect(db_name)
 with con:
 	cur = con.cursor()
 
 	#check if the data is inserted properly in the table
-	rows = con.execute('SELECT * FROM FieldInfo')
+	rows = con.execute('SELECT * FROM FluxData')
 	for row in rows:
 		print(row)
-
+'''
 
