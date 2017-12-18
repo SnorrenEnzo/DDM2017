@@ -30,7 +30,7 @@ def createDB():
 	
 	#the keys of the three tables of the database
 	posdata_keys = np.array(['StarID','FieldID','Ra','Dec','X','Y'])
-	fieldinfo_keys = np.array(['FieldID','MJD','Airmass','Exptime','Filter'])
+	fieldinfo_keys = np.array(['ID','FieldID','MJD','Airmass','Exptime','Filter'])
 	fluxdata_keys = np.array(['StarID','FieldID','Flux1','dFlux1','Flux2', 'dFlux2','Flux3','dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Class'])
 	#the names of the tables
 	tablenames = np.array(['PosData','FieldInfo','FluxData'])
@@ -55,9 +55,10 @@ def createDB():
 	cur.execute(createtable) #run command
 	
 	
-	#create the table for the field info like date, 
+	#create the table for the field info like date
 	createtable = """CREATE TABLE IF NOT EXISTS {0} 
-	(FieldID INT, 
+	(ID INT,
+	FieldID INT, 
 	MJD DOUBLE,
 	Airmass FLOAT,
 	Exptime INT,
@@ -155,15 +156,22 @@ def fillDataBase(dataloc = 'Tables/'):
 		fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
 		fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
 
-'''
-#open the database
-con = lite.connect(db_name)
-with con:
-	cur = con.cursor()
 
-	#check if the data is inserted properly in the table
-	rows = con.execute('SELECT * FROM FluxData')
-	for row in rows:
-		print(row)
-'''
+def R1():
+	"""
+	Test query R1
+	"""
+	#open the database
+	con = lite.connect(db_name)
+	with con:
+		cur = con.cursor()
+		
+		query1 = "WHERE(SELECT ID FROM FieldInfo WHERE MJD BETWEEN 56800 AND 57300)"
+
+		#check if the data is inserted properly in the table
+		rows = con.execute(query1)
+		for row in rows:
+			print(row)
+
+R1()
 
