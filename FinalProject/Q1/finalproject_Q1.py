@@ -4,6 +4,8 @@ import numpy as np
 from astropy.table import Table
 import sqlite3 as lite
 import pandas
+#for finding things in strings
+import re
 
 #name of the database
 db_name = "survey_database.db"
@@ -27,14 +29,15 @@ def createDB():
 	"""
 	
 	#the keys of the three tables of the database
-	posdata_keys = ['StarID','FieldID','Ra','Dec','PixelX','PixelY']
-	fieldinfo_keys = ['FieldID','MJD','Airmass','Exptime']
-	fluxdata_keys = ['StarID','FieldID','Flux1','dFlux1','Flux2','dFlux2','Flux3',
-									'dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Filter','Class']
+	posdata_keys = np.array(['StarID','FieldID','Ra','Dec','X','Y'])
+	fieldinfo_keys = np.array(['FieldID','MJD','Airmass','Exptime','Filter'])
+	fluxdata_keys = np.array(['StarID','FieldID','Flux1','dFlux1','Flux2', 'dFlux2','Flux3','dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Class'])
+	#the names of the tables
+	tablenames = np.array(['PosData','FieldInfo','FluxData'])
 	
 	#check if the database exists
 	if len(glob.glob(db_name)) > 0:
-		return posdata_keys, fieldinfo_keys, fluxdata_keys
+		return {tablenames[0]:posdata_keys, tablenames[1]:fieldinfo_keys, tablenames[2]:fluxdata_keys}, tablenames
 		
 	print('Creating new database with name "{0}"...'.format(db_name))
 		
@@ -47,8 +50,8 @@ def createDB():
 	FieldID INT,
 	Ra FLOAT, 
 	Dec FLOAT, 
-	PixelX FLOAT, 
-	PixelY FLOAT)""".format('PosData')
+	X FLOAT, 
+	Y FLOAT)""".format(tablenames[0])
 	cur.execute(createtable) #run command
 	
 	
@@ -57,7 +60,8 @@ def createDB():
 	(FieldID INT, 
 	MJD DOUBLE,
 	Airmass FLOAT,
-	Exptime INT)""".format('FieldInfo')
+	Exptime INT,
+	Filter varchar(5))""".format(tablenames[1])
 	cur.execute(createtable) #run command
 	
 	#create the table for the fluxes and the magnitudes
@@ -76,65 +80,77 @@ def createDB():
 	dMag2 FLOAT,
 	Mag3 FLOAT,
 	dMag3 FLOAT,
-	Filter varchar(5),
 	Class INT
-	)""".format('FluxData')
+	)""".format(tablenames[2])
 	cur.execute(createtable) #run command
 	
-	return posdata_keys, fieldinfo_keys, fluxdata_keys
+	con.close()
 	
-def fillTable(db_name, data, keys, tablename):
+	return {tablenames[0]:posdata_keys, tablenames[1]:fieldinfo_keys, tablenames[2]:fluxdata_keys}, tablenames
+	
+def fillTable(dbn, data, keys, tablename):
 	"""
 	Fill a table in a database
 	"""
 	
 	#open the database
-	con = lite.connect(db_name)
-	cur = con.cursor()
-	
-	#determine the number of keys
-	nkeys = len(keys)
+	con = lite.connect(dbn)
+	with con:
+		cur = con.cursor()
 
-	#fill the table
-	for i in np.arange(len(data[keys[0]])):
-		insertcommand = 'INSERT INTO {0} VALUES('.format(tablename)
-		#add all the values from the data array row
-		for key, j in zip(keys, np.arange(nkeys)):
-			insertcommand += str(data[key][i])
-			
-			if j < (nkeys - 1):
-				insertcommand += ','
-			
-		#close the command with a bracket
-		insertcommand += ')'
+		#determine the number of keys
+		nkeys = len(keys)
 
-		cur.execute(insertcommand)
-		
-	#close the connection
-	con.close()
+		#fill the table
+		for i in np.arange(len(data[keys[0]])):
+			insertcommand = "INSERT INTO {0} VALUES(".format(tablename)
+			#add all the values from the data array row
+			for key, j in zip(keys, np.arange(nkeys)):
+				if type(data[key][i]) == np.str_:
+					insertcommand += "'" + data[key][i] + "'"
+				else:
+					insertcommand += str(data[key][i])
+				
+				if j < (nkeys - 1):
+					insertcommand += ","
+				
+			#close the command with a bracket
+			insertcommand += ")"
+
+			cur.execute(insertcommand)
+			
 	
-posdata_keys, fieldinfo_keys, fluxdata_keys = createDB()
+allkeys, tablenames = createDB()
 
 #load the csv
 csv_data = Table.read('Tables/file_info_for_problem.csv')
 #fill the 'FieldInfo' table with the data from the csv
-fillTable(db_name, csv_data, fieldinfo_keys, 'FieldInfo')
-
+fillTable(db_name, csv_data, allkeys['FieldInfo'], 'FieldInfo')
 
 #make a list of the filenames of the fits files
 filelist = makeFileList('Tables/', '.fits')
 
 #read a single fits file
-data = Table.read('Tables/Field-1-Ks-E001.fits')
+fname = 'Tables/Field-1-Ks-E001.fits'
+tabledata = Table.read(fname)
+#find the field ID
+fID = int(re.search(r'\d+', fname).group())
+#add the field ID to the table
+tabledata['FieldID'] = np.tile([fID], len(tabledata[allkeys['PosData'][0]]))
+#insert the data into the two other tables
+fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
 
 #print(data.keys())
 
+
 #open the database
 con = lite.connect(db_name)
-cur = con.cursor()
+with con:
+	cur = con.cursor()
 
-#check if the data is inserted properly in the table
-rows = con.execute('SELECT * FROM FieldInfo')
-for row in rows:
-	print(row)
+	#check if the data is inserted properly in the table
+	rows = con.execute('SELECT * FROM PosData')
+	for row in rows:
+		print(row)
+
 
