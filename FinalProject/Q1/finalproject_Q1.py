@@ -166,12 +166,21 @@ def R1():
 	with con:
 		cur = con.cursor()
 		
-		query1 = "WHERE(SELECT ID FROM FieldInfo WHERE MJD BETWEEN 56800 AND 57300)"
+		
+		query1 = """
+				SELECT i.ID, COUNT(f.StarID)
+				FROM FluxData f JOIN FieldInfo i 
+				ON f.FieldID = i.FieldID
+				WHERE f.Flux1/f.dFlux1 > 5
+				GROUP BY i.ID HAVING MJD BETWEEN 56800 AND 57300
+				"""
 
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		for row in rows:
 			print(row)
 
+#createDB()
+#fillDataBase()
 R1()
 
