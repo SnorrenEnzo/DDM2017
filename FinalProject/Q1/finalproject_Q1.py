@@ -31,7 +31,7 @@ def createDB():
 	#the keys of the three tables of the database
 	posdata_keys = np.array(['StarID','FieldID','Ra','Dec','X','Y'])
 	fieldinfo_keys = np.array(['ID','FieldID','MJD','Airmass','Exptime','Filter'])
-	fluxdata_keys = np.array(['StarID','FieldID','Flux1','dFlux1','Flux2', 'dFlux2','Flux3','dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Class'])
+	fluxdata_keys = np.array(['StarID','ID','Flux1','dFlux1','Flux2', 'dFlux2','Flux3','dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Class'])
 	#the names of the tables
 	tablenames = np.array(['PosData','FieldInfo','FluxData'])
 	
@@ -68,7 +68,7 @@ def createDB():
 	#create the table for the fluxes and the magnitudes
 	createtable = """CREATE TABLE IF NOT EXISTS {0} 
 	(StarID INT,
-	FieldID INT, 
+	ID INT, 
 	Flux1 FLOAT,
 	dFlux1 FLOAT,
 	Flux2 FLOAT,
@@ -150,12 +150,21 @@ def fillDataBase(dataloc = 'Tables/'):
 
 		#find the field ID
 		fID = int(fname[len(dataloc):].split('-')[1])
-		#add the field ID to the table
+
+		#find the filter
+		filt = fname[len(dataloc):].split('-')[2].split('.')[0]
+
+		#find the image ID using the fieldID and filter
+		iID = csv_data['ID'][(csv_data['Filter'] == filt) * (csv_data['FieldID'] == fID)][0]
+
+		#add the image ID to the table
+		tabledata['ID'] = np.tile([iID], len(tabledata[allkeys['PosData'][0]]))
+		#add Field ID to the table
 		tabledata['FieldID'] = np.tile([fID], len(tabledata[allkeys['PosData'][0]]))
+
 		#insert the data in the PosData and FluxData tables
 		fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
 		fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
-
 
 def R1():
 	"""
@@ -170,7 +179,7 @@ def R1():
 		query1 = """
 				SELECT i.ID, COUNT(f.StarID)
 				FROM FluxData f JOIN FieldInfo i 
-				ON f.FieldID = i.FieldID
+				ON f.ID = i.ID
 				WHERE f.Flux1/f.dFlux1 > 5
 				GROUP BY i.ID HAVING MJD BETWEEN 56800 AND 57300
 				"""
@@ -180,7 +189,43 @@ def R1():
 		for row in rows:
 			print(row)
 
-#createDB()
-#fillDataBase()
+def R2():
+	"""
+	Test query R2
+	"""
+	#open the database
+	con = lite.connect(db_name)
+	with con:
+		cur = con.cursor()
+
+		query1 = """
+				SELECT j.StarID, j.Mag1 - h.Mag1
+				FROM (SELECT f.Mag1, f.StarID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'J') j
+				JOIN (SELECT f.Mag1, f.StarID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'H') h
+				ON j.StarID = h.StarID
+				WHERE j.Mag1 - h.Mag1 > 1.5
+				GROUP BY j.StarID
+				"""
+		
+		#check if the data is inserted properly in the table
+		rows = con.execute(query1)
+		i = 0
+		printall = False
+		for row in rows:
+			if printall:
+				print(row)
+			elif i < 30:
+				print(row)
+			# print(row)
+			i += 1
+
+# createDB()
+# fillDataBase()
 R1()
 
