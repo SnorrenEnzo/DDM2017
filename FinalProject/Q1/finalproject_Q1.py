@@ -167,7 +167,7 @@ def fillDataBase(dataloc = 'Tables/'):
 		fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
 		fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
 
-def printrows(rows, maxprint = 30):
+def printrows(rows, maxprint = 20):
 	"""
 	Print the rows in a given sql query output. 
 
@@ -183,6 +183,35 @@ def printrows(rows, maxprint = 30):
 		elif i < maxprint:
 			print(row)
 		i += 1
+
+def makehistogram(rows, names):
+	"""
+	Make a histogram of the given SQL output rows
+	"""
+
+	import matplotlib.pyplot as plt
+	import seaborn as sns
+
+	sns.set()
+
+	#load the data in a numpy array
+	data = []
+	for row in rows:
+		data.append(row)
+	data = np.reshape(data, (-1, len(names)))
+
+	#put the data in a dictionary and remove the None values
+	data_dict = {}
+	for i, n in zip(range(data.shape[1]), names):
+		data_dict.setdefault(n,[]).append(data[:,i][data[:,i] != None])
+
+	print(data_dict['J'].shape)
+	print(np.arange(0, 1000).shape)
+
+	# plt.hist(data_dict['J'])
+	# sns.kdeplot(np.arange)
+	# plt.show()
+
 
 def R1():
 	"""
@@ -205,6 +234,7 @@ def R1():
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		
+		print('\nQuery R1')
 		printrows(rows, maxprint = -1)
 
 def R2():
@@ -234,6 +264,7 @@ def R2():
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		
+		print('\nQuery R2')
 		printrows(rows)
 
 def R3():
@@ -259,10 +290,10 @@ def R3():
 				GROUP BY f.StarID
 				"""
 
-		
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		
+		print('\nQuery R3')
 		printrows(rows)
 
 def R4():
@@ -284,9 +315,69 @@ def R4():
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		
+		print('\nQuery R4')
 		printrows(rows)
+
+def R5(fieldid = 1):
+	"""
+	Test query R5. The Ks magnitudes are averaged per field.
+
+	Input:
+		fieldid (int): ID of the field of which the Y, Z, J, H and Ks magnitudes
+		should be obtained.
+	"""
+	#names of the filters
+	names = ['Y', 'Z', 'J', 'H', 'Ks']
+
+	#open the database
+	con = lite.connect(db_name)
+	with con:
+		cur = con.cursor()
+
+		query1 = """
+				SELECT Y.Mag1, Z.Mag1, J.Mag1, H.Mag1, Ks.AvgMag1
+				FROM (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'Y' AND f.Flux1/f.dFlux1 > 30) Y
+				LEFT JOIN (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'Z' AND f.Flux1/f.dFlux1 > 30
+				) Z On Y.StarID = Z.StarID AND Y.FieldID = Z.FieldID
+				LEFT JOIN (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'J' AND f.Flux1/f.dFlux1 > 30
+				) J On Y.StarID = J.StarID AND Y.FieldID = J.FieldID
+				LEFT JOIN (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'H' AND f.Flux1/f.dFlux1 > 30
+				) H On Y.StarID = H.StarID AND Y.FieldID = H.FieldID
+				LEFT JOIN (
+					SELECT AVG(f.Mag1) AS AvgMag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'Ks' AND f.Flux1/f.dFlux1 > 30
+					GROUP BY f.StarID, i.ID
+				) Ks On Y.StarID = Ks.StarID AND Y.FieldID = Ks.FieldID
+				WHERE Y.FieldID = {0}
+				""".format(fieldid)
+
+		#check if the data is inserted properly in the table
+		rows = con.execute(query1)
+		
+		print('\nQuery R5')
+		printrows(rows)
+
+		# makehistogram(rows, names)
 
 # createDB()
 # fillDataBase()
-R4()
+R5()
 
