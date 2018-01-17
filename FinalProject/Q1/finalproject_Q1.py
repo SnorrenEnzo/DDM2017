@@ -190,9 +190,14 @@ def makehistogram(rows, names):
 	"""
 
 	import matplotlib.pyplot as plt
+	# from matplotlib import rcParams
+	# rcParams['font.family'] = 'Latin Modern Roman'
 	import seaborn as sns
 
-	sns.set()
+	sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True})
+
+	#the bandwidth to be used
+	bandwidth = 0.2
 
 	#load the data in a numpy array
 	data = []
@@ -205,12 +210,16 @@ def makehistogram(rows, names):
 	for i, n in zip(range(data.shape[1]), names):
 		data_dict.setdefault(n,[]).append(data[:,i][data[:,i] != None])
 
-	print(data_dict['J'].shape)
-	print(np.arange(0, 1000).shape)
+	# plt.hist(np.array(data_dict['J'])[0])
+	for n in names:
+		sns.kdeplot(np.array(data_dict[n])[0], bw = bandwidth, label = n)
 
-	# plt.hist(data_dict['J'])
-	# sns.kdeplot(np.arange)
-	# plt.show()
+	plt.legend(loc = 'best', title = 'Filter', shadow = True)
+	plt.title('KDE plot of database filters with bandwidth = {0}'.format(bandwidth))
+	plt.xlabel('Magnitude')
+	plt.ylabel('Probability')
+	plt.savefig('R5_visualization.svg', dpi = 300)
+	plt.show()
 
 
 def R1():
@@ -372,12 +381,12 @@ def R5(fieldid = 1):
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		
-		print('\nQuery R5')
-		printrows(rows)
+		# print('\nQuery R5')
+		# printrows(rows)
 
-		# makehistogram(rows, names)
+		makehistogram(rows, names)
 
 # createDB()
 # fillDataBase()
-R5()
+R3()
 
