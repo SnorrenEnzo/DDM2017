@@ -29,6 +29,7 @@ def createDB():
 	"""
 	
 	#the keys of the three tables of the database
+	#note that ID = identifier for every image (= catalogue)
 	posdata_keys = np.array(['StarID','FieldID','Ra','Dec','X','Y'])
 	fieldinfo_keys = np.array(['ID','FieldID','MJD','Airmass','Exptime','Filter'])
 	fluxdata_keys = np.array(['StarID','ID','Flux1','dFlux1','Flux2', 'dFlux2','Flux3','dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Class'])
@@ -166,6 +167,23 @@ def fillDataBase(dataloc = 'Tables/'):
 		fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
 		fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
 
+def printrows(rows, maxprint = 30):
+	"""
+	Print the rows in a given sql query output. 
+
+	Input:
+		rows (str iterator): the rows obtained from an SQL query.\n
+		maxprint (int): the maximum number of rows to print. Default = 30. Set to 
+		-1 to print all the rows.
+	"""
+	i = 0
+	for row in rows:
+		if maxprint < 1:
+			print(row)
+		elif i < maxprint:
+			print(row)
+		i += 1
+
 def R1():
 	"""
 	Test query R1
@@ -186,8 +204,8 @@ def R1():
 
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
-		for row in rows:
-			print(row)
+		
+		printrows(rows, maxprint = -1)
 
 def R2():
 	"""
@@ -215,17 +233,60 @@ def R2():
 		
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
-		i = 0
-		printall = False
-		for row in rows:
-			if printall:
-				print(row)
-			elif i < 30:
-				print(row)
-			# print(row)
-			i += 1
+		
+		printrows(rows)
+
+def R3():
+	"""
+	Test query R3
+	"""
+	#open the database
+	con = lite.connect(db_name)
+	with con:
+		cur = con.cursor()
+
+		query1 = """
+				SELECT f.StarID
+				FROM FluxData f 
+				JOIN FieldInfo i ON f.ID = i.ID
+				WHERE i.Filter = 'Ks' AND ABS(
+					f.Flux1 - (
+					SELECT AVG(f2.Flux1)
+					FROM FluxData f2
+					JOIN FieldInfo i2 ON f2.ID = i2.ID
+					WHERE f.StarID = f2.StarID
+					)) > 20 * f.dFlux1
+				GROUP BY f.StarID
+				"""
+
+		
+		#check if the data is inserted properly in the table
+		rows = con.execute(query1)
+		
+		printrows(rows)
+
+def R4():
+	"""
+	Test query R4. Catalogue = image
+	"""
+	#open the database
+	con = lite.connect(db_name)
+	with con:
+		cur = con.cursor()
+
+		query1 = """
+				SELECT ID
+				FROM FieldInfo
+				WHERE FieldID = 1
+				"""
+
+		
+		#check if the data is inserted properly in the table
+		rows = con.execute(query1)
+		
+		printrows(rows)
 
 # createDB()
 # fillDataBase()
-R1()
+R4()
 
