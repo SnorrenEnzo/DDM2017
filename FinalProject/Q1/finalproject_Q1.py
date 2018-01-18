@@ -478,7 +478,7 @@ def loadYJHdata():
 
 		return data
 
-def make2D_KDE(data, n_samp = 1e5):
+def make2D_KDE(data, n_samp = 1e5, n_folds = 3):
 	"""
 	Make a 2D Kernel Density Estimation and draw a n_samp number of samples from it
 	"""
@@ -488,22 +488,19 @@ def make2D_KDE(data, n_samp = 1e5):
 	from sklearn.model_selection import KFold
 
 	X = data
-
-	print(np.shape(X))
+	'''
+	kf = KFold(n_splits = n_folds)
 
 	#range of bandwidths to try
-	bwrange = np.linspace(0.02, 0.12, 50)
+	bwrange = np.linspace(0.03, 0.08, 25)
 
-	#set the number of folds
-	kf = KFold(n_splits = 3)
-	
 	likelyhood = np.zeros(len(bwrange))
 	
 	print('Finding the best bandwidth...')
 	for bw, i in zip(bwrange, np.arange(len(bwrange))):
 		print('Iteration {0}'.format(i))
 		lh = []
-		for train_i, test_i in kf.split(X[:,:5000]):
+		for train_i, test_i in kf.split(X[:,:1000]):
 			Xtrain, Xtest = X[train_i], X[test_i]
 			kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(Xtrain)
 
@@ -519,12 +516,15 @@ def make2D_KDE(data, n_samp = 1e5):
 	plt.xlabel('Bandwidth')
 	plt.ylabel('Likelyhood')
 	plt.title('KDE likelyhood for different bandwidths')
-	plt.savefig('2D_KDE_likelyhood_run3.svg', dpi = 300)
+	plt.savefig('2D_KDE_likelyhood_run3.png', dpi = 300)
 	plt.close()
 
 
 	#find the bandwidth which gave the highest likelyhood
 	bw = bwrange[np.argmax(likelyhood)]
+	'''
+	#best bandwidth obtained from previous runs
+	bw = 0.0546938775510204
 
 	print('Best bandwidth: {0}'.format(bw))
 
@@ -544,13 +544,19 @@ def make2D_KDE(data, n_samp = 1e5):
 	log_dens = kde.score_samples(Xgrid)
 	dens1 = X.shape[0] * np.exp(log_dens).reshape((Ny, Nx))
 
-	print(np.shape(log_dens))
+	#also pull samples from the kde
+	samples = kde.sample(int(n_samp))
 
-	plt.imshow(dens1, origin = 'lower')
+	#plot a portion of the samples
+	plt.scatter(samples[:1000][:, 0], samples[:1000][:, 1], marker = 'x', color = 'black')
+	#plot the KDE contours
+	plt.contour(dens1, origin = 'lower')
 	plt.xticks(np.linspace(0, Nx, 11), np.linspace(xlims[0], xlims[1], 11))
 	plt.yticks(np.linspace(0, Nx, 11), np.linspace(ylims[0], ylims[1], 11))
-	plt.savefig('2D_KDE_highest_likelyhood_bw_run3.svg', dpi = 300)
+	plt.savefig('2D_KDE_highest_likelyhood_bw.png', dpi = 300)
 	plt.show()
+
+	return samples
 	
 
 # createDB()
@@ -559,4 +565,4 @@ def make2D_KDE(data, n_samp = 1e5):
 
 data = loadYJHdata()
 
-make2D_KDE(data)
+samples = make2D_KDE(data)
