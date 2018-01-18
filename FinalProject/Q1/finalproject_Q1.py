@@ -206,7 +206,6 @@ def makeKDE(rows, names, query_id):
 	"""
 	Make a KDE plot of the different columns in the SQL data
 	"""
-
 	import matplotlib.pyplot as plt
 	import seaborn as sns
 
@@ -270,7 +269,7 @@ def R1():
 				GROUP BY i.ID HAVING MJD BETWEEN 56800 AND 57300
 				"""
 
-		#check if the data is inserted properly in the table
+		#run the query
 		rows = con.execute(query1)
 		
 		print('\nQuery R1')
@@ -300,7 +299,7 @@ def R2():
 				GROUP BY j.StarID
 				"""
 		
-		#check if the data is inserted properly in the table
+		#run the query
 		rows = con.execute(query1)
 		
 		print('\nQuery R2')
@@ -333,7 +332,7 @@ def R3():
 				GROUP BY f.StarID
 				"""
 
-		#check if the data is inserted properly in the table
+		#run the query
 		rows = con.execute(query1)
 		
 		# print('\nQuery R3')
@@ -357,7 +356,7 @@ def R4():
 				"""
 
 		
-		#check if the data is inserted properly in the table
+		#run the query
 		rows = con.execute(query1)
 		
 		print('\nQuery R4')
@@ -414,7 +413,7 @@ def R5(fieldid = 1):
 				WHERE Y.FieldID = {0}
 				""".format(fieldid)
 
-		#check if the data is inserted properly in the table
+		#run the query
 		rows = con.execute(query1)
 		
 		# print('\nQuery R5')
@@ -422,7 +421,142 @@ def R5(fieldid = 1):
 
 		makeKDE(rows, names, 'R5')
 
+def loadYJHdata():
+	"""
+	Test query R5. The Ks magnitudes are averaged per field.
+
+	Input:
+		fieldid (int): ID of the field of which the Y, Z, J, H and Ks magnitudes
+		should be obtained.
+	"""
+	#names of the filters
+	names = ['Y - J', 'J - H']
+
+	#open the database
+	con = lite.connect(db_name)
+	with con:
+		cur = con.cursor()
+
+		query1 = """
+				SELECT Y.Mag1 - J.Mag1, J.Mag1 - H.Mag1
+				FROM (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'Y' AND f.Flux1/f.dFlux1 > 30) Y
+				LEFT JOIN (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'J' AND f.Flux1/f.dFlux1 > 30
+				) J On Y.StarID = J.StarID AND Y.FieldID = J.FieldID
+				LEFT JOIN (
+					SELECT f.Mag1, f.StarID, i.FieldID
+					FROM FluxData f 
+					JOIN FieldInfo i ON f.ID = i.ID
+					WHERE i.Filter = 'H' AND f.Flux1/f.dFlux1 > 30
+				) H On Y.StarID = H.StarID AND Y.FieldID = H.FieldID
+				"""
+
+		#run the query
+		rows = con.execute(query1)
+		
+		#load the data in a numpy array
+		data = []
+		for row in rows:
+			data.append(row)
+		data = np.reshape(np.array(data, dtype = np.float), (-1, len(names)))
+
+		#replace all the 'None' entries with np.nan
+		data[data == None] = np.nan
+		#remove all the colour pairs which contain a nan
+		removeloc = np.zeros(data.shape[0])
+		for i in range(len(names)):
+			removeloc += np.isnan(data[:, i])
+
+		data = data[removeloc == 0]
+
+		return data
+
+def make2D_KDE(data, n_samp = 1e5):
+	"""
+	Make a 2D Kernel Density Estimation and draw a n_samp number of samples from it
+	"""
+	import matplotlib.pyplot as plt
+	# import seaborn as sns
+	from sklearn.neighbors import KernelDensity
+	from sklearn.model_selection import KFold
+
+	X = data
+
+	print(np.shape(X))
+
+	#range of bandwidths to try
+	bwrange = np.linspace(0.02, 0.12, 50)
+
+	#set the number of folds
+	kf = KFold(n_splits = 3)
+	
+	likelyhood = np.zeros(len(bwrange))
+	
+	print('Finding the best bandwidth...')
+	for bw, i in zip(bwrange, np.arange(len(bwrange))):
+		print('Iteration {0}'.format(i))
+		lh = []
+		for train_i, test_i in kf.split(X[:,:5000]):
+			Xtrain, Xtest = X[train_i], X[test_i]
+			kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(Xtrain)
+
+			lhscore = kde.score(Xtest)
+			
+			lh = np.append(lh, lhscore)
+
+			print('Bandwidth: {0}, score: {1}'.format(bw, lhscore))
+			
+		likelyhood[i] = np.mean(lh)
+
+	plt.plot(bwrange, likelyhood)
+	plt.xlabel('Bandwidth')
+	plt.ylabel('Likelyhood')
+	plt.title('KDE likelyhood for different bandwidths')
+	plt.savefig('2D_KDE_likelyhood_run3.svg', dpi = 300)
+	plt.close()
+
+
+	#find the bandwidth which gave the highest likelyhood
+	bw = bwrange[np.argmax(likelyhood)]
+
+	print('Best bandwidth: {0}'.format(bw))
+
+	kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(X)
+
+	#generate the grid on which to plot the results
+	Nx = Ny = 50
+	xlims = [-1, 1]
+	ylims = [0.4, 2.2]
+	xgrid = np.linspace(xlims[0], xlims[1], Nx)
+	ygrid = np.linspace(ylims[0], ylims[1], Ny)
+	mesh = np.meshgrid(xgrid, ygrid)
+	tmp = map(np.ravel, mesh)
+	Xgrid = np.vstack(tmp).T
+	
+	# Evaluate the KDE on the grid
+	log_dens = kde.score_samples(Xgrid)
+	dens1 = X.shape[0] * np.exp(log_dens).reshape((Ny, Nx))
+
+	print(np.shape(log_dens))
+
+	plt.imshow(dens1, origin = 'lower')
+	plt.xticks(np.linspace(0, Nx, 11), np.linspace(xlims[0], xlims[1], 11))
+	plt.yticks(np.linspace(0, Nx, 11), np.linspace(ylims[0], ylims[1], 11))
+	plt.savefig('2D_KDE_highest_likelyhood_bw_run3.svg', dpi = 300)
+	plt.show()
+	
+
 # createDB()
 # fillDataBase()
-R5()
+# R5()
 
+data = loadYJHdata()
+
+make2D_KDE(data)
