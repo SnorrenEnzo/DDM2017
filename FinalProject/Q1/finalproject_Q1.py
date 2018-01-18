@@ -184,20 +184,10 @@ def printrows(rows, maxprint = 20):
 			print(row)
 		i += 1
 
-def makehistogram(rows, names):
+def convertData(rows, names):
 	"""
-	Make a histogram of the given SQL output rows
+	Convert the SQL rows to a data dictionary with keys 'names'
 	"""
-
-	import matplotlib.pyplot as plt
-	# from matplotlib import rcParams
-	# rcParams['font.family'] = 'Latin Modern Roman'
-	import seaborn as sns
-
-	sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True})
-
-	#the bandwidth to be used
-	bandwidth = 0.2
 
 	#load the data in a numpy array
 	data = []
@@ -210,15 +200,55 @@ def makehistogram(rows, names):
 	for i, n in zip(range(data.shape[1]), names):
 		data_dict.setdefault(n,[]).append(data[:,i][data[:,i] != None])
 
+	return data_dict
+
+def makeKDE(rows, names, query_id):
+	"""
+	Make a KDE plot of the different columns in the SQL data
+	"""
+
+	import matplotlib.pyplot as plt
+	import seaborn as sns
+
+	sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True})
+
+	#the bandwidth to be used
+	bandwidth = 0.2
+
+	data = convertData(rows, names)
+
 	# plt.hist(np.array(data_dict['J'])[0])
 	for n in names:
-		sns.kdeplot(np.array(data_dict[n])[0], bw = bandwidth, label = n)
+		sns.kdeplot(np.array(data[n])[0], bw = bandwidth, label = n)
 
 	plt.legend(loc = 'best', title = 'Filter', shadow = True)
 	plt.title('KDE plot of database filters with bandwidth = {0}'.format(bandwidth))
 	plt.xlabel('Magnitude')
 	plt.ylabel('Probability')
-	plt.savefig('R5_visualization.svg', dpi = 300)
+	plt.savefig('{0}_visualization.svg'.format(query_id), dpi = 300)
+	plt.show()
+
+def makeHistogram(rows, names, query_id):
+	"""
+	Make a histogram of the given SQL output rows
+	"""
+	import matplotlib.pyplot as plt
+	import seaborn as sns
+
+	# sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True}) #Latin Modern Roman
+
+	data = convertData(rows, names)
+
+	sns.distplot(data[names[1]], kde = False, color = 'g')
+	# plt.hist(data[names[1]])
+
+	# plt.legend(loc = 'best', title = 'Filter', shadow = True)
+	plt.title('Histogram of J - H')
+	plt.xlim((1.4, 2.25))
+	# plt.yscale('log')
+	plt.xlabel('J - H')
+	plt.ylabel('Number of stars')
+	plt.savefig('{0}_visualization.svg'.format(query_id), dpi = 300)
 	plt.show()
 
 
@@ -276,10 +306,14 @@ def R2():
 		print('\nQuery R2')
 		printrows(rows)
 
+		# makeHistogram(rows, ['StarID', 'J - H'], 'R2')
+
+
 def R3():
 	"""
 	Test query R3
 	"""
+	print('running')
 	#open the database
 	con = lite.connect(db_name)
 	with con:
@@ -302,8 +336,10 @@ def R3():
 		#check if the data is inserted properly in the table
 		rows = con.execute(query1)
 		
-		print('\nQuery R3')
-		printrows(rows)
+		# print('\nQuery R3')
+		# printrows(rows)
+		print('yes')
+		makehistogram(rows, ['Ks'], 'R3')
 
 def R4():
 	"""
@@ -384,9 +420,9 @@ def R5(fieldid = 1):
 		# print('\nQuery R5')
 		# printrows(rows)
 
-		makehistogram(rows, names)
+		makeKDE(rows, names, 'R5')
 
 # createDB()
 # fillDataBase()
-R3()
+R5()
 
