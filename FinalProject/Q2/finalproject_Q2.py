@@ -475,7 +475,7 @@ def update_parameters(parameters, grads, learning_rate):
 		parameters['b{0}'.format(l+1)] = parameters['b{0}'.format(l+1)] - learning_rate * grads['db{0}'.format(l+1)]
 	return parameters
 
-def L_layer_model(X, Y, layers_dims, learning_rate = 0.01, num_iterations = 3000, print_cost=False, activation = 'relu', final_activation = 'tanh'):#lr was 0.009
+def L_layer_model(X, Y, layers_dims, learning_rate = 0.0001, num_iterations = 3000, print_cost=False, activation = 'relu', final_activation = 'tanh'):#lr was 0.009
 	"""
 	Implements a L-layer neural network: [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID.
 	
@@ -533,4 +533,9 @@ def L_layer_model(X, Y, layers_dims, learning_rate = 0.01, num_iterations = 3000
 layers_dims = [5, 8, 6, 1]
 parameters = L_layer_model(Xtrain.T, Ytrain[:,None].T, layers_dims, num_iterations = 1000, print_cost = True, activation = 'relu')
 
-print(parameters)
+#now input the test set and see the results
+AL, cache = L_model_forward(Xtest.T, parameters, 'relu', 'tanh')
+
+print(AL[0])
+
+print(error(AL[0], Ytest))
