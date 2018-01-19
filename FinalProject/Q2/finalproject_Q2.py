@@ -112,6 +112,66 @@ def RF(Xtrain, Ytrain, Xtest, Ytest):
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
+def Adaboost(Xtrain, Ytrain, Xtest, Ytest):
+	"""
+	Apply the adaboost algorithm
+	"""
+	from sklearn.ensemble import AdaBoostRegressor
+	print('\nAdaboost:')
+
+	clf = AdaBoostRegressor(n_estimators=1000).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = clf.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = clf.predict(Xtest)
+	Etrain = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etrain))
+
+
+def Bagging(Xtrain, Ytrain, Xtest, Ytest):
+	"""
+	Apply the extra trees regressor
+	"""
+	from sklearn.ensemble import BaggingRegressor
+	print('\nBagging regressor:')
+
+	clf = BaggingRegressor(n_estimators=100, n_jobs=-1).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = clf.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = clf.predict(Xtest)
+	Etrain = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etrain))
+
+def ExtraTrees(Xtrain, Ytrain, Xtest, Ytest):
+	"""
+	Apply the extra trees regressor
+	"""
+	from sklearn.ensemble import ExtraTreesRegressor
+	print('\nExtra trees regressor:')
+
+	clf = ExtraTreesRegressor(n_estimators=500, n_jobs=-1).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = clf.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = clf.predict(Xtest)
+	Etrain = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etrain))
 
 #load the train data
 train_d = Table().read(dloc + 'PhotoZFileA.vot')
@@ -131,4 +191,4 @@ Ytest = np.array(test_d['z_spec'])
 # ridge(Xtrain, Ytrain)
 # lasso(Xtrain, Ytrain)
 
-RF(Xtrain, Ytrain, Xtest, Ytest)
+# ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
