@@ -62,6 +62,36 @@ def ridge(Xtrain, Ytrain):
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
+def lasso(Xtrain, Ytrain):
+	"""
+	Apply Lasso regression
+	"""
+	from sklearn.linear_model import Lasso
+
+	print('\nLasso regression:')
+
+	alpharange = np.linspace(0.0001, 0.05, 100)
+	errorlist = np.zeros(len(alpharange))
+
+	#hyperparameter tuning
+	for alpha, i in zip(alpharange, range(len(alpharange))):
+		lin_model = Lasso(alpha = alpha).fit(Xtrain, Ytrain)
+		prediction = lin_model.predict(Xtrain)
+		errorlist[i] = error(prediction, Ytrain)
+
+	bestloc = np.argmin(errorlist)
+	print('Best alpha: {0}'.format(alpharange[bestloc]))
+	print('Corresponding error: {0}'.format(errorlist[bestloc]))
+
+	#apply ridge regression
+	lin_model = Lasso(alpha = alpharange[bestloc]).fit(Xtrain, Ytrain)
+	print('R^2: {0}'.format(lin_model.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = lin_model.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
 #load the train data
 train_d = Table().read(dloc + 'PhotoZFileA.vot')
 keys = train_d.keys()
@@ -71,5 +101,5 @@ Ytrain = train_d['z_spec']
 
 linear(Xtrain, Ytrain)
 ridge(Xtrain, Ytrain)
-
+lasso(Xtrain, Ytrain)
 
