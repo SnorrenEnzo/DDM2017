@@ -24,11 +24,11 @@ def linear(Xtrain, Ytrain):
 	print('\nLinear regression:')
 
 	#apply the linear model
-	lin_model = LinearRegression(n_jobs = -1).fit(Xtrain, Ytrain)
-	print('R^2: {0}'.format(lin_model.score(Xtrain, Ytrain)))
+	reg = LinearRegression(n_jobs = -1).fit(Xtrain, Ytrain)
+	print('R^2: {0}'.format(reg.score(Xtrain, Ytrain)))
 
 	#find the training error
-	prediction = lin_model.predict(Xtrain)
+	prediction = reg.predict(Xtrain)
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
@@ -45,8 +45,8 @@ def ridge(Xtrain, Ytrain):
 
 	#hyperparameter tuning
 	for alpha, i in zip(alpharange, range(len(alpharange))):
-		lin_model = Ridge(alpha = alpha).fit(Xtrain, Ytrain)
-		prediction = lin_model.predict(Xtrain)
+		reg = Ridge(alpha = alpha).fit(Xtrain, Ytrain)
+		prediction = reg.predict(Xtrain)
 		errorlist[i] = error(prediction, Ytrain)
 
 	bestloc = np.argmin(errorlist)
@@ -54,11 +54,11 @@ def ridge(Xtrain, Ytrain):
 	print('Corresponding error: {0}'.format(errorlist[bestloc]))
 
 	#apply ridge regression
-	lin_model = Ridge(alpha = alpharange[bestloc]).fit(Xtrain, Ytrain)
-	print('R^2: {0}'.format(lin_model.score(Xtrain, Ytrain)))
+	reg = Ridge(alpha = alpharange[bestloc]).fit(Xtrain, Ytrain)
+	print('R^2: {0}'.format(reg.score(Xtrain, Ytrain)))
 
 	#find the training error
-	prediction = lin_model.predict(Xtrain)
+	prediction = reg.predict(Xtrain)
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
@@ -70,13 +70,13 @@ def lasso(Xtrain, Ytrain):
 
 	print('\nLasso regression:')
 
-	alpharange = np.linspace(0.0001, 0.05, 100)
+	alpharange = np.logspace(-10, 0, 100)
 	errorlist = np.zeros(len(alpharange))
 
 	#hyperparameter tuning
 	for alpha, i in zip(alpharange, range(len(alpharange))):
-		lin_model = Lasso(alpha = alpha).fit(Xtrain, Ytrain)
-		prediction = lin_model.predict(Xtrain)
+		reg = Lasso(alpha = alpha).fit(Xtrain, Ytrain)
+		prediction = reg.predict(Xtrain)
 		errorlist[i] = error(prediction, Ytrain)
 
 	bestloc = np.argmin(errorlist)
@@ -84,22 +84,51 @@ def lasso(Xtrain, Ytrain):
 	print('Corresponding error: {0}'.format(errorlist[bestloc]))
 
 	#apply ridge regression
-	lin_model = Lasso(alpha = alpharange[bestloc]).fit(Xtrain, Ytrain)
-	print('R^2: {0}'.format(lin_model.score(Xtrain, Ytrain)))
+	reg = Lasso(alpha = alpharange[bestloc]).fit(Xtrain, Ytrain)
+	print('R^2: {0}'.format(reg.score(Xtrain, Ytrain)))
 
 	#find the training error
-	prediction = lin_model.predict(Xtrain)
+	prediction = reg.predict(Xtrain)
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
+
+def RF(Xtrain, Ytrain, Xtest, Ytest):
+	"""
+	Apply a random forest
+	"""
+	from sklearn.ensemble import RandomForestRegressor
+	print('\nRandom Forest:')
+
+	clf = RandomForestRegressor(n_estimators=100, n_jobs=-1).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = clf.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = clf.predict(Xtest)
+	Etrain = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etrain))
+
 
 #load the train data
 train_d = Table().read(dloc + 'PhotoZFileA.vot')
 keys = train_d.keys()
-print(keys)
+# print(keys)
 Xtrain = np.array([train_d['mag_r'], train_d['u-g'], train_d['g-r'], train_d['r-i'], train_d['i-z']]).T
-Ytrain = train_d['z_spec']
+Ytrain = np.array(train_d['z_spec'])
 
-linear(Xtrain, Ytrain)
-ridge(Xtrain, Ytrain)
-lasso(Xtrain, Ytrain)
+#load the train data
+test_d = Table().read(dloc + 'PhotoZFileB.vot')
+keys = test_d.keys()
+# print(keys)
+Xtest = np.array([test_d['mag_r'], test_d['u-g'], test_d['g-r'], test_d['r-i'], test_d['i-z']]).T
+Ytest = np.array(test_d['z_spec'])
 
+# linear(Xtrain, Ytrain)
+# ridge(Xtrain, Ytrain)
+# lasso(Xtrain, Ytrain)
+
+RF(Xtrain, Ytrain, Xtest, Ytest)
