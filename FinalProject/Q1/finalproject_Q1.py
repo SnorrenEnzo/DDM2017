@@ -340,7 +340,7 @@ def R3():
 		print('yes')
 		makehistogram(rows, ['Ks'], 'R3')
 
-def R4():
+def R4(fieldid = 1):
 	"""
 	Test query R4. Catalogue = image
 	"""
@@ -352,8 +352,8 @@ def R4():
 		query1 = """
 				SELECT ID
 				FROM FieldInfo
-				WHERE FieldID = 1
-				"""
+				WHERE FieldID = {0}
+				""".format(fieldid)
 
 		
 		#run the query
@@ -478,16 +478,18 @@ def loadYJHdata():
 
 		return data
 
-def make2D_KDE(data, n_samp = 1e5, n_folds = 3):
+def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 	"""
 	Make a 2D Kernel Density Estimation and draw a n_samp number of samples from it
 	"""
 	import matplotlib.pyplot as plt
-	# import seaborn as sns
+	import seaborn as sns
 	from sklearn.neighbors import KernelDensity
 	from sklearn.model_selection import KFold
+	from matplotlib import rcParams
+	rcParams['font.family'] = 'Latin Modern Roman'
+	from matplotlib.colors import LogNorm
 
-	X = data
 	'''
 	kf = KFold(n_splits = n_folds)
 
@@ -530,30 +532,26 @@ def make2D_KDE(data, n_samp = 1e5, n_folds = 3):
 
 	kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(X)
 
-	#generate the grid on which to plot the results
-	Nx = Ny = 50
-	xlims = [-1, 1]
-	ylims = [0.4, 2.2]
-	xgrid = np.linspace(xlims[0], xlims[1], Nx)
-	ygrid = np.linspace(ylims[0], ylims[1], Ny)
-	mesh = np.meshgrid(xgrid, ygrid)
-	tmp = map(np.ravel, mesh)
-	Xgrid = np.vstack(tmp).T
-	
-	# Evaluate the KDE on the grid
-	log_dens = kde.score_samples(Xgrid)
-	dens1 = X.shape[0] * np.exp(log_dens).reshape((Ny, Nx))
-
-	#also pull samples from the kde
+	#pull samples from the kde
 	samples = kde.sample(int(n_samp))
 
-	#plot a portion of the samples
-	plt.scatter(samples[:1000][:, 0], samples[:1000][:, 1], marker = 'x', color = 'black')
-	#plot the KDE contours
-	plt.contour(dens1, origin = 'lower')
-	plt.xticks(np.linspace(0, Nx, 11), np.linspace(xlims[0], xlims[1], 11))
-	plt.yticks(np.linspace(0, Nx, 11), np.linspace(ylims[0], ylims[1], 11))
-	plt.savefig('2D_KDE_highest_likelyhood_bw.png', dpi = 300)
+	sns.regplot(samples[:10000][:, 0], 
+				samples[:10000][:, 1], 
+				fit_reg = False, 
+				color = '#280745', 
+				marker = '+')
+	sns.kdeplot(samples[:10000][:, 0], 
+				samples[:10000][:, 1], 
+				norm = LogNorm(0.05, 4), 
+				n_levels = [0.1, 0.3, 0.75, 1.2, 2, 4], 
+				cmap = 'plasma')
+
+	# plt.xticks(np.linspace(0, Nx, 11), np.linspace(xlims[0], xlims[1], 11))
+	# plt.yticks(np.linspace(0, Nx, 11), np.linspace(ylims[0], ylims[1], 11))
+	plt.xlabel('Y - J')
+	plt.ylabel('J - H')
+	plt.title('Distribution of samples in Y-J, J-H space')
+	plt.savefig('Samples_distribution.png', dpi = 300)
 	plt.show()
 
 	return samples
