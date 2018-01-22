@@ -394,13 +394,16 @@ def R5(fieldid = 1):
 
 		makeKDE(data, names, 'R5')
 
-def loadYJHdata():
+def loadYJHdata(SN = 8):
 	"""
-	Test query R5. The Ks magnitudes are averaged per field.
+	Load the Y - J and J - H colours of all the stars in the database with
+	SN > 8.
 
 	Input:
-		fieldid (int): ID of the field of which the Y, Z, J, H and Ks magnitudes
-		should be obtained.
+		SN (int): signal to noise threshold. Default = 8.
+
+	Output:
+		data (pandas dataframe): the data obtained from the query
 	"""
 	#names of the filters
 	names = ['Y - J', 'J - H']
@@ -408,7 +411,6 @@ def loadYJHdata():
 	#open the database
 	con = lite.connect(db_name)
 	with con:
-		cur = con.cursor()
 
 		query1 = """
 				SELECT Y.Mag1 - J.Mag1, J.Mag1 - H.Mag1
@@ -416,38 +418,28 @@ def loadYJHdata():
 					SELECT f.Mag1, f.StarID, i.FieldID
 					FROM FluxData f 
 					JOIN FieldInfo i ON f.ID = i.ID
-					WHERE i.Filter = 'Y' AND f.Flux1/f.dFlux1 > 30) Y
+					WHERE i.Filter = 'Y' AND f.Flux1/f.dFlux1 > {0}) Y
 				LEFT JOIN (
 					SELECT f.Mag1, f.StarID, i.FieldID
 					FROM FluxData f 
 					JOIN FieldInfo i ON f.ID = i.ID
-					WHERE i.Filter = 'J' AND f.Flux1/f.dFlux1 > 30
+					WHERE i.Filter = 'J' AND f.Flux1/f.dFlux1 > {0}
 				) J On Y.StarID = J.StarID AND Y.FieldID = J.FieldID
 				LEFT JOIN (
 					SELECT f.Mag1, f.StarID, i.FieldID
 					FROM FluxData f 
 					JOIN FieldInfo i ON f.ID = i.ID
-					WHERE i.Filter = 'H' AND f.Flux1/f.dFlux1 > 30
+					WHERE i.Filter = 'H' AND f.Flux1/f.dFlux1 > {0}
 				) H On Y.StarID = H.StarID AND Y.FieldID = H.FieldID
-				"""
+				""".format(SN)
 
 		#run the query
-		rows = con.execute(query1)
-		
-		#load the data in a numpy array
-		data = []
-		for row in rows:
-			data.append(row)
-		data = np.reshape(np.array(data, dtype = np.float), (-1, len(names)))
+		data = pd.read_sql(query1, con)
 
-		#replace all the 'None' entries with np.nan
-		data[data == None] = np.nan
-		#remove all the colour pairs which contain a nan
-		removeloc = np.zeros(data.shape[0])
-		for i in range(len(names)):
-			removeloc += np.isnan(data[:, i])
-
-		data = data[removeloc == 0]
+		#rename the columns of the dataframe
+		data.columns = names
+		#remove all none or nan values
+		data = data.dropna()
 
 		return data
 
@@ -463,7 +455,7 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 	rcParams['font.family'] = 'Latin Modern Roman'
 	from matplotlib.colors import LogNorm
 
-	'''
+	
 	kf = KFold(n_splits = n_folds)
 
 	#range of bandwidths to try
@@ -497,7 +489,7 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 
 	#find the bandwidth which gave the highest likelyhood
 	bw = bwrange[np.argmax(likelyhood)]
-	'''
+	
 	#best bandwidth obtained from previous runs
 	bw = 0.0546938775510204
 
@@ -532,8 +524,10 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 
 # createDB()
 # fillDataBase()
-R1()
+R3()
 
-# data = loadYJHdata()
+#load the data as a pandas dataframe
+# df = loadYJHdata()
 
-# samples = make2D_KDE(data)
+#input the data as a numpy array
+# samples = make2D_KDE(np.array([df['Y - J'], df['J - H']]).T)
