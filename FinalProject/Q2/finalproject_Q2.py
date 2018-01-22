@@ -33,7 +33,7 @@ def error(z_phot, z_spec):
 	"""
 	return np.median(np.abs(z_spec - z_phot) / (1 + z_spec))
 
-def linear(Xtrain, Ytrain):
+def linear(Xtrain, Ytrain, Xtest, Ytest):
 	"""
 	Apply linear regression
 	"""
@@ -50,7 +50,12 @@ def linear(Xtrain, Ytrain):
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
-def ridge(Xtrain, Ytrain):
+	#find the test error
+	prediction = reg.predict(Xtest)
+	Etest = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etest))
+
+def ridge(Xtrain, Ytrain, Xtest, Ytest):
 	"""
 	Apply ridge regression
 	"""
@@ -80,7 +85,12 @@ def ridge(Xtrain, Ytrain):
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
-def lasso(Xtrain, Ytrain):
+	#find the test error
+	prediction = reg.predict(Xtest)
+	Etest = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etest))
+
+def lasso(Xtrain, Ytrain, Xtest, Ytest):
 	"""
 	Apply Lasso regression
 	"""
@@ -109,6 +119,11 @@ def lasso(Xtrain, Ytrain):
 	prediction = reg.predict(Xtrain)
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = reg.predict(Xtest)
+	Etest = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etest))
 
 def RF(Xtrain, Ytrain, Xtest, Ytest):
 	"""
@@ -178,7 +193,7 @@ def ExtraTrees(Xtrain, Ytrain, Xtest, Ytest):
 	from sklearn.ensemble import ExtraTreesRegressor
 	print('\nExtra trees regressor:')
 
-	clf = ExtraTreesRegressor(n_estimators=500, n_jobs=-1).fit(Xtrain, Ytrain)
+	clf = ExtraTreesRegressor(n_estimators=100, n_jobs=-1).fit(Xtrain, Ytrain)
 	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
 
 	#find the training error
@@ -191,13 +206,10 @@ def ExtraTrees(Xtrain, Ytrain, Xtest, Ytest):
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
-Xtrain, Xtest, Ytrain, Ytest = loadData()
 
-# linear(Xtrain, Ytrain)
-# ridge(Xtrain, Ytrain)
-# lasso(Xtrain, Ytrain)
-
-# ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
+################################################
+# Functions for the hand written random forest #
+################################################
 
 # np.random.seed(1)
 
@@ -475,7 +487,7 @@ def update_parameters(parameters, grads, learning_rate):
 		parameters['b{0}'.format(l+1)] = parameters['b{0}'.format(l+1)] - learning_rate * grads['db{0}'.format(l+1)]
 	return parameters
 
-def L_layer_model(X, Y, layers_dims, learning_rate = 0.0001, num_iterations = 3000, print_cost=False, activation = 'relu', final_activation = 'tanh'):#lr was 0.009
+def L_layer_model(X, Y, layers_dims, learning_rate = 0.0005, num_iterations = 3000, print_cost=False, activation = 'relu', final_activation = 'tanh'):#lr was 0.009
 	"""
 	Implements a L-layer neural network: [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID.
 	
@@ -529,13 +541,25 @@ def L_layer_model(X, Y, layers_dims, learning_rate = 0.0001, num_iterations = 30
 	
 	return parameters
 
+Xtrain, Xtest, Ytrain, Ytest = loadData()
+
+# linear(Xtrain, Ytrain, Xtest, Ytest)
+# ridge(Xtrain, Ytrain, Xtest, Ytest)
+# lasso(Xtrain, Ytrain, Xtest, Ytest)
+
+# RF(Xtrain, Ytrain, Xtest, Ytest)
+# Adaboost(Xtrain, Ytrain, Xtest, Ytest)
+# Bagging(Xtrain, Ytrain, Xtest, Ytest)
+# ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
+
+
 #run the Neural Network
-layers_dims = [5, 8, 6, 1]
+layers_dims = [5, 8, 6, 3, 1]
 parameters = L_layer_model(Xtrain.T, Ytrain[:,None].T, layers_dims, num_iterations = 1000, print_cost = True, activation = 'relu')
 
 #now input the test set and see the results
 AL, cache = L_model_forward(Xtest.T, parameters, 'relu', 'tanh')
 
-print(AL[0])
+print(AL[:100])
 
-print(error(AL[0], Ytest))
+print('Neural network error: {0}'.format(error(AL[0], Ytest)))
