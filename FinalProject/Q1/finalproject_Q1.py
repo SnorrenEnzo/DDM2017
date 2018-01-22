@@ -3,7 +3,7 @@ import glob
 import numpy as np
 from astropy.table import Table
 import sqlite3 as lite
-import pandas
+import pandas as pd
 #for checking if something is nan
 import math
 
@@ -167,42 +167,7 @@ def fillDataBase(dataloc = 'Tables/'):
 		fillTable(db_name, tabledata, allkeys['PosData'], 'PosData')
 		fillTable(db_name, tabledata, allkeys['FluxData'], 'FluxData')
 
-def printrows(rows, maxprint = 20):
-	"""
-	Print the rows in a given sql query output. 
-
-	Input:
-		rows (str iterator): the rows obtained from an SQL query.\n
-		maxprint (int): the maximum number of rows to print. Default = 30. Set to 
-		-1 to print all the rows.
-	"""
-	i = 0
-	for row in rows:
-		if maxprint < 1:
-			print(row)
-		elif i < maxprint:
-			print(row)
-		i += 1
-
-def convertData(rows, names):
-	"""
-	Convert the SQL rows to a data dictionary with keys 'names'
-	"""
-
-	#load the data in a numpy array
-	data = []
-	for row in rows:
-		data.append(row)
-	data = np.reshape(data, (-1, len(names)))
-
-	#put the data in a dictionary and remove the None values
-	data_dict = {}
-	for i, n in zip(range(data.shape[1]), names):
-		data_dict.setdefault(n,[]).append(data[:,i][data[:,i] != None])
-
-	return data_dict
-
-def makeKDE(rows, names, query_id):
+def makeKDE(data, names, query_id):
 	"""
 	Make a KDE plot of the different columns in the SQL data
 	"""
@@ -214,52 +179,71 @@ def makeKDE(rows, names, query_id):
 	#the bandwidth to be used
 	bandwidth = 0.2
 
-	data = convertData(rows, names)
+	#rename the columns of the dataframe
+	data.columns = names
+	#remove all none or nan values
+	data = data.dropna()
 
 	# plt.hist(np.array(data_dict['J'])[0])
 	for n in names:
-		sns.kdeplot(np.array(data[n])[0], bw = bandwidth, label = n)
+		sns.kdeplot(np.array(data[n]), bw = bandwidth, label = n)
 
 	plt.legend(loc = 'best', title = 'Filter', shadow = True)
 	plt.title('KDE plot of database filters with bandwidth = {0}'.format(bandwidth))
 	plt.xlabel('Magnitude')
 	plt.ylabel('Probability')
-	plt.savefig('{0}_visualization.svg'.format(query_id), dpi = 300)
+	plt.savefig('{0}_visualization.pdf'.format(query_id), dpi = 300)
 	plt.show()
 
-def makeHistogram(rows, names, query_id):
+def makeHistogram(data, names, query_id):
 	"""
 	Make a histogram of the given SQL output rows
 	"""
 	import matplotlib.pyplot as plt
 	import seaborn as sns
 
-	# sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True}) #Latin Modern Roman
+	sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True})
 
-	data = convertData(rows, names)
+	#rename the columns of the dataframe
+	data.columns = names
+	#remove all none or nan values
+	data = data.dropna()
 
 	sns.distplot(data[names[1]], kde = False, color = 'g')
 	# plt.hist(data[names[1]])
 
 	# plt.legend(loc = 'best', title = 'Filter', shadow = True)
-	plt.title('Histogram of J - H')
-	plt.xlim((1.4, 2.25))
+	if query_id == 'R2':
+		plt.title('Histogram of J - H')
+		plt.xlim((1.4, 2.25))
 	# plt.yscale('log')
-	plt.xlabel('J - H')
-	plt.ylabel('Number of stars')
-	plt.savefig('{0}_visualization.svg'.format(query_id), dpi = 300)
+		plt.xlabel('J - H')
+		plt.ylabel('Number of stars')
+	elif query_id == 'R3':
+		plt.title('Histogram of Ks flux')
+		plt.xlabel('Flux')
+		plt.ylabel('Number of stars')
+	plt.savefig('{0}_visualization.pdf'.format(query_id), dpi = 300)
 	plt.show()
 
+def saveResults(data, query_id):
+	"""
+	Save the results of a query to a csv file.
+
+	Input:
+		data (pandas dataframe): a dataframe containing the data to be saved.\n
+		query_id (str): the name of the query.
+	"""
+	data.to_csv('./Query_results/{0}_results.csv'.format(query_id), index = False)
 
 def R1():
 	"""
 	Test query R1
 	"""
+	print('\nQuery 1:')
 	#open the database
 	con = lite.connect(db_name)
 	with con:
-		cur = con.cursor()
-		
 		
 		query1 = """
 				SELECT i.ID, COUNT(f.StarID)
@@ -270,10 +254,12 @@ def R1():
 				"""
 
 		#run the query
-		rows = con.execute(query1)
-		
-		print('\nQuery R1')
-		printrows(rows, maxprint = -1)
+		data = pd.read_sql(query1, con)
+
+		print(data)
+
+		#save the data to a csv file
+		saveResults(data, 'R1')
 
 def R2():
 	"""
@@ -282,7 +268,6 @@ def R2():
 	#open the database
 	con = lite.connect(db_name)
 	with con:
-		cur = con.cursor()
 
 		query1 = """
 				SELECT j.StarID, j.Mag1 - h.Mag1
@@ -300,23 +285,17 @@ def R2():
 				"""
 		
 		#run the query
-		rows = con.execute(query1)
-		
-		print('\nQuery R2')
-		printrows(rows)
+		data = pd.read_sql(query1, con)
 
-		# makeHistogram(rows, ['StarID', 'J - H'], 'R2')
-
+		makeHistogram(data, ['StarID', 'J - H'], 'R2')
 
 def R3():
 	"""
 	Test query R3
 	"""
-	print('running')
 	#open the database
 	con = lite.connect(db_name)
 	with con:
-		cur = con.cursor()
 
 		query1 = """
 				SELECT f.StarID
@@ -333,12 +312,9 @@ def R3():
 				"""
 
 		#run the query
-		rows = con.execute(query1)
+		data = pd.read_sql(query1, con)
 		
-		# print('\nQuery R3')
-		# printrows(rows)
-		print('yes')
-		makehistogram(rows, ['Ks'], 'R3')
+		makeHistogram(data, ['Ks'], 'R3')
 
 def R4(fieldid = 1):
 	"""
@@ -347,7 +323,6 @@ def R4(fieldid = 1):
 	#open the database
 	con = lite.connect(db_name)
 	with con:
-		cur = con.cursor()
 
 		query1 = """
 				SELECT ID
@@ -357,10 +332,12 @@ def R4(fieldid = 1):
 
 		
 		#run the query
-		rows = con.execute(query1)
-		
-		print('\nQuery R4')
-		printrows(rows)
+		data = pd.read_sql(query1, con)
+
+		print(data)
+
+		#save the data to a csv file
+		saveResults(data, 'R4')
 
 def R5(fieldid = 1):
 	"""
@@ -376,7 +353,6 @@ def R5(fieldid = 1):
 	#open the database
 	con = lite.connect(db_name)
 	with con:
-		cur = con.cursor()
 
 		query1 = """
 				SELECT Y.Mag1, Z.Mag1, J.Mag1, H.Mag1, Ks.AvgMag1
@@ -414,12 +390,9 @@ def R5(fieldid = 1):
 				""".format(fieldid)
 
 		#run the query
-		rows = con.execute(query1)
-		
-		# print('\nQuery R5')
-		# printrows(rows)
+		data = pd.read_sql(query1, con)
 
-		makeKDE(rows, names, 'R5')
+		makeKDE(data, names, 'R5')
 
 def loadYJHdata():
 	"""
@@ -550,7 +523,7 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 	# plt.yticks(np.linspace(0, Nx, 11), np.linspace(ylims[0], ylims[1], 11))
 	plt.xlabel('Y - J')
 	plt.ylabel('J - H')
-	plt.title('Distribution of samples in Y-J, J-H space')
+	plt.title('Distribution of samps in Y-J, J-H space')
 	plt.savefig('Samples_distribution.png', dpi = 300)
 	plt.show()
 
@@ -559,8 +532,8 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 
 # createDB()
 # fillDataBase()
-# R5()
+R1()
 
-data = loadYJHdata()
+# data = loadYJHdata()
 
-samples = make2D_KDE(data)
+# samples = make2D_KDE(data)
