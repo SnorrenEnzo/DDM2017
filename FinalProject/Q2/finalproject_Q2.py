@@ -132,7 +132,7 @@ def RF(Xtrain, Ytrain, Xtest, Ytest):
 	from sklearn.ensemble import RandomForestRegressor
 	print('\nRandom Forest:')
 
-	clf = RandomForestRegressor(n_estimators=100, n_jobs=-1).fit(Xtrain, Ytrain)
+	clf = RandomForestRegressor(n_estimators=500, n_jobs=-1).fit(Xtrain, Ytrain)
 	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
 
 	#find the training error
@@ -206,10 +206,32 @@ def ExtraTrees(Xtrain, Ytrain, Xtest, Ytest):
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
+def SVM(Xtrain, Ytrain, Xtest, Ytest):
+	"""
+	Apply the extra trees regressor
+	"""
+	from sklearn.svm import SVR
+	print('\nSVM regressor:')
 
-################################################
-# Functions for the hand written random forest #
-################################################
+	clf = SVR(epsilon = 0.02).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = clf.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = clf.predict(Xtest)
+	Etrain = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etrain))
+
+
+#############################################################################
+# Functions for the hand written neural network. This code was written by me 
+# for the Coursera course on neural networks. Therefore, it will have many
+# similarities with code written by others for this course.
+#############################################################################
 
 # np.random.seed(1)
 
@@ -487,7 +509,7 @@ def update_parameters(parameters, grads, learning_rate):
 		parameters['b{0}'.format(l+1)] = parameters['b{0}'.format(l+1)] - learning_rate * grads['db{0}'.format(l+1)]
 	return parameters
 
-def L_layer_model(X, Y, layers_dims, learning_rate = 0.0005, num_iterations = 3000, print_cost=False, activation = 'relu', final_activation = 'tanh'):#lr was 0.009
+def L_layer_model(X, Y, layers_dims, learning_rate = 0.0001, num_iterations = 3000, print_cost=False, activation = 'relu', final_activation = 'tanh'):#lr was 0.009
 	"""
 	Implements a L-layer neural network: [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID.
 	
@@ -543,6 +565,10 @@ def L_layer_model(X, Y, layers_dims, learning_rate = 0.0005, num_iterations = 30
 
 Xtrain, Xtest, Ytrain, Ytest = loadData()
 
+print(f'Shape of training data: {Xtrain.shape}')
+
+print(Xtrain[0])
+
 # linear(Xtrain, Ytrain, Xtest, Ytest)
 # ridge(Xtrain, Ytrain, Xtest, Ytest)
 # lasso(Xtrain, Ytrain, Xtest, Ytest)
@@ -551,8 +577,9 @@ Xtrain, Xtest, Ytrain, Ytest = loadData()
 # Adaboost(Xtrain, Ytrain, Xtest, Ytest)
 # Bagging(Xtrain, Ytrain, Xtest, Ytest)
 # ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
+SVM(Xtrain, Ytrain, Xtest, Ytest)
 
-
+'''
 #run the Neural Network
 layers_dims = [5, 8, 6, 3, 1]
 parameters = L_layer_model(Xtrain.T, Ytrain[:,None].T, layers_dims, num_iterations = 1000, print_cost = True, activation = 'relu')
@@ -563,3 +590,4 @@ AL, cache = L_model_forward(Xtest.T, parameters, 'relu', 'tanh')
 print(AL[:100])
 
 print('Neural network error: {0}'.format(error(AL[0], Ytest)))
+'''
