@@ -226,23 +226,64 @@ def SVM(Xtrain, Ytrain, Xtest, Ytest, kerneltype = 'rbf'):
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
-def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest):
+def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, n_folds = 4, k_best = None):
 	"""
 	Apply a nearest neighbour regressor
 	"""
+	import matplotlib.pyplot as plt
 	from sklearn.neighbors import KNeighborsRegressor
 	print('\nNearest neighbour regressor:')
 
-	clf = KNeighborsRegressor(n_neighbors = 150, n_jobs = -1).fit(Xtrain, Ytrain)
-	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+	#find the best number of neighbours if none is given
+	if k_best == None:
+		from sklearn.model_selection import KFold
+		kf = KFold(n_splits = n_folds)
+		#the range of values of the amount of neighbours to test
+		k_range = np.arange(3, 200, 2)
+		#the array which will store the error of each number of neighbours
+		errorlist = np.zeros(len(k_range))	
+
+		print('Finding the best number of neighbours...')
+		for k, i in zip(k_range, np.arange(len(k_range))):
+			le = []
+			#apply 4 fold cross validation
+			for train_i, test_i in kf.split(Xtrain, Ytrain):
+				#split the data into a train and test set 
+				Xtr, Xte = Xtrain[train_i], Xtrain[test_i]
+				Ytr, Yte = Xtrain[train_i], Ytrain[test_i]
+				model = KNeighborsRegressor(n_neighbors = k, n_jobs = -1).fit(Xtrain, Ytrain)
+
+				# lhscore = model.score(Xte, Yte)
+				err = error(model.predict(Xte), Yte)
+				
+				le = np.append(le, err)
+				
+			errorlist[i] = np.mean(le)
+
+			print('Iteration {0}, n_neighbours {1}, mean error: {2}'.format(i, k, errorlist[i]))
+
+		#find the best amount of neighbours. Usually this is 3
+		k_best = k_range[np.argmin(errorlist)]
+
+		plt.plot(k_range, errorlist)
+		plt.xlabel('Number of neighbours')
+		plt.ylabel('Error')
+		plt.title('Nearest neighbour error for different number of neighbours')
+		plt.savefig('Nearest_neighbours_error.png', dpi = 300)
+		plt.close()
+
+	print(f'Number of neighbours with lowest cross validated test error: {k_best}')
+
+	model = KNeighborsRegressor(n_neighbors = k_best, n_jobs = -1).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(model.score(Xtrain, Ytrain)))
 
 	#find the training error
-	prediction = clf.predict(Xtrain)
+	prediction = model.predict(Xtrain)
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
 	#find the test error
-	prediction = clf.predict(Xtest)
+	prediction = model.predict(Xtest)
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
@@ -596,7 +637,7 @@ print(f'Shape of training data: {Xtrain.shape}')
 # Bagging(Xtrain, Ytrain, Xtest, Ytest)
 # ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
 # SVM(Xtrain, Ytrain, Xtest, Ytest, kerneltype = 'linear')
-NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest)
+NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, k_best = 3)
 
 '''
 #run the Neural Network
