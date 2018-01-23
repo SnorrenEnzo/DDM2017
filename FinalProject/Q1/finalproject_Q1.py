@@ -220,6 +220,7 @@ def makeHistogram(data, names, query_id):
 		plt.xlabel('J - H')
 		plt.ylabel('Number of stars')
 	elif query_id == 'R3':
+		plt.xlim((-6000, 250000))
 		plt.title('Histogram of Ks flux')
 		plt.xlabel('Flux')
 		plt.ylabel('Number of stars')
@@ -293,12 +294,13 @@ def R3():
 	"""
 	Test query R3
 	"""
+	print('Warning: this query might take very long')
 	#open the database
 	con = lite.connect(db_name)
 	with con:
 
 		query1 = """
-				SELECT f.StarID
+				SELECT f.StarID, f.Flux1
 				FROM FluxData f 
 				JOIN FieldInfo i ON f.ID = i.ID
 				WHERE i.Filter = 'Ks' AND ABS(
@@ -307,14 +309,21 @@ def R3():
 					FROM FluxData f2
 					JOIN FieldInfo i2 ON f2.ID = i2.ID
 					WHERE f.StarID = f2.StarID
-					)) > 20 * f.dFlux1
+					)) > (20 * f.dFlux1)
 				GROUP BY f.StarID
 				"""
 
 		#run the query
 		data = pd.read_sql(query1, con)
+
+		#save the data to a csv file
+		saveResults(data, 'R3')
+
+		#it is also possible to load the results from a file, as the query takes
+		#very long to run
+		# data = pd.read_csv('./Query_results/R3_results.csv')
 		
-		makeHistogram(data, ['Ks'], 'R3')
+		makeHistogram(data, ['StarID', 'Ks flux'], 'R3')
 
 def R4(fieldid = 1):
 	"""
@@ -394,13 +403,13 @@ def R5(fieldid = 1):
 
 		makeKDE(data, names, 'R5')
 
-def loadYJHdata(SN = 8):
+def loadYJHdata(SN = 10):
 	"""
 	Load the Y - J and J - H colours of all the stars in the database with
 	SN > 8.
 
 	Input:
-		SN (int): signal to noise threshold. Default = 8.
+		SN (int): signal to noise threshold. Default = 10.
 
 	Output:
 		data (pandas dataframe): the data obtained from the query
@@ -441,11 +450,32 @@ def loadYJHdata(SN = 8):
 		#remove all none or nan values
 		data = data.dropna()
 
+		print('Number of data points: {0}'.format(len(data[names[0]])))
+
 		return data
 
-def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
+def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1000, bw_range_size = 20):
 	"""
 	Make a 2D Kernel Density Estimation and draw a n_samp number of samples from it
+	best bandwidth obtained from previous runs
+	bandwidth = 0.0546938775510204
+	bandwidth = 0.05894736842105264
+
+	Input:
+		X (2D numpy array): the training data, consisting of the Y - J and J - H 
+		colours.\n
+		n_samp (int): the number of samples to draw from the KDE. Default = 100000.\n
+		bandwidth (float): the bandwidth to use for the KDE from which the samples
+		will be drawn. Set to None to let the script find the best bandwidth. 
+		Default = None.\n
+		n_folds (int): the number of folds to use when determining the bandwidth.\n
+		bw_train_size (int): size of the training set that will be used to 
+		determine the best bandwidth. Default = 1000.\n
+		bw_range_size (int); the amount of bandwidths to try out in the interval
+		0.04 to 0.1. Default = 20.
+
+	Output:
+		samples (2D numpy array): the samples drawn from the KDE.
 	"""
 	import matplotlib.pyplot as plt
 	import seaborn as sns
@@ -455,68 +485,72 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 	rcParams['font.family'] = 'Latin Modern Roman'
 	from matplotlib.colors import LogNorm
 
-	
-	kf = KFold(n_splits = n_folds)
+	#shuffle the data
+	np.random.shuffle(X)
 
-	#range of bandwidths to try
-	bwrange = np.linspace(0.03, 0.08, 25)
+	#determine the best bandwidth if it is not provided
+	if bandwidth == None:
+		#first we find the optimum bandwidth
+		kf = KFold(n_splits = n_folds)
 
-	likelyhood = np.zeros(len(bwrange))
-	
-	print('Finding the best bandwidth...')
-	for bw, i in zip(bwrange, np.arange(len(bwrange))):
-		print('Iteration {0}'.format(i))
-		lh = []
-		for train_i, test_i in kf.split(X[:,:1000]):
-			Xtrain, Xtest = X[train_i], X[test_i]
-			kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(Xtrain)
+		#range of bandwidths to try
+		bwrange = np.linspace(0.04, 0.1, bw_range_size)
+		#the array which will store the bandwidth
+		likelyhood = np.zeros(len(bwrange))
+		
+		print('Finding the best bandwidth...')
+		for bw, i in zip(bwrange, np.arange(len(bwrange))):
+			print('Iteration {0}, bandwidth {1}'.format(i, bw))
+			lh = []
+			#split the data into a train and test set using only the first 1000 samples
+			for train_i, test_i in kf.split(X[:,:bw_train_size]):
+				Xtrain, Xtest = X[train_i], X[test_i]
+				kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(Xtrain)
 
-			lhscore = kde.score(Xtest)
-			
-			lh = np.append(lh, lhscore)
+				lhscore = kde.score(Xtest)
+				
+				lh = np.append(lh, lhscore)
 
-			print('Bandwidth: {0}, score: {1}'.format(bw, lhscore))
-			
-		likelyhood[i] = np.mean(lh)
+				print('Bandwidth: {0}, score: {1}'.format(bw, lhscore))
+				
+			likelyhood[i] = np.mean(lh)
 
-	plt.plot(bwrange, likelyhood)
-	plt.xlabel('Bandwidth')
-	plt.ylabel('Likelyhood')
-	plt.title('KDE likelyhood for different bandwidths')
-	plt.savefig('2D_KDE_likelyhood_run3.png', dpi = 300)
-	plt.close()
+		plt.plot(bwrange, likelyhood)
+		plt.xlabel('Bandwidth')
+		plt.ylabel('Likelyhood')
+		plt.title('KDE likelyhood for different bandwidths')
+		plt.savefig('2D_KDE_likelyhood_run4.png', dpi = 300)
+		plt.close()
 
 
-	#find the bandwidth which gave the highest likelyhood
-	bw = bwrange[np.argmax(likelyhood)]
-	
-	#best bandwidth obtained from previous runs
-	bw = 0.0546938775510204
+		#find the bandwidth which gave the highest likelyhood
+		bandwidth = bwrange[np.argmax(likelyhood)]
 
-	print('Best bandwidth: {0}'.format(bw))
+		print('Best bandwidth: {0}'.format(bandwidth))
 
-	kde = KernelDensity(bandwidth = bw, kernel = 'gaussian').fit(X)
+	kde = KernelDensity(bandwidth = bandwidth, kernel = 'gaussian').fit(X)
 
 	#pull samples from the kde
 	samples = kde.sample(int(n_samp))
-
-	sns.regplot(samples[:10000][:, 0], 
-				samples[:10000][:, 1], 
-				fit_reg = False, 
-				color = '#280745', 
-				marker = '+')
+	
+	#only plot the first 10000 samples with a KDE, because otherwise this would take way too long
 	sns.kdeplot(samples[:10000][:, 0], 
 				samples[:10000][:, 1], 
-				norm = LogNorm(0.05, 4), 
-				n_levels = [0.1, 0.3, 0.75, 1.2, 2, 4], 
-				cmap = 'plasma')
+				shade = True,
+				cmap = 'Reds',
+				cbar = True)
+	
 
-	# plt.xticks(np.linspace(0, Nx, 11), np.linspace(xlims[0], xlims[1], 11))
-	# plt.yticks(np.linspace(0, Nx, 11), np.linspace(ylims[0], ylims[1], 11))
+	# plt.hexbin(samples[:, 0], samples[:, 1], cmap='Reds')
+	# plt.colorbar()
+
+	plt.xlim((-0.65, 0.3))
+	plt.ylim((0.5, 2.1))
+
 	plt.xlabel('Y - J')
 	plt.ylabel('J - H')
-	plt.title('Distribution of samps in Y-J, J-H space')
-	plt.savefig('Samples_distribution.png', dpi = 300)
+	plt.title('Distribution of samples in (Y-J, J-H) colour space')
+	plt.savefig('Samples_distribution_KDE.pdf', dpi = 300)
 	plt.show()
 
 	return samples
@@ -524,10 +558,10 @@ def make2D_KDE(X, n_samp = 1e5, n_folds = 3):
 
 # createDB()
 # fillDataBase()
-R3()
+# R3()
 
 #load the data as a pandas dataframe
-# df = loadYJHdata()
+df = loadYJHdata()
 
-#input the data as a numpy array
-# samples = make2D_KDE(np.array([df['Y - J'], df['J - H']]).T)
+#input the data as a numpy array and receive the 100000 samples
+samples = make2D_KDE(np.array([df['Y - J'], df['J - H']]).T, bandwidth = 0.058947)
