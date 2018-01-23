@@ -454,7 +454,7 @@ def loadYJHdata(SN = 10):
 
 		return data
 
-def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1000, bw_range_size = 20):
+def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1000, bw_range_size = 20, doplot = True):
 	"""
 	Make a 2D Kernel Density Estimation and draw a n_samp number of samples from it
 	best bandwidth obtained from previous runs
@@ -472,7 +472,9 @@ def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1
 		bw_train_size (int): size of the training set that will be used to 
 		determine the best bandwidth. Default = 1000.\n
 		bw_range_size (int); the amount of bandwidths to try out in the interval
-		0.04 to 0.1. Default = 20.
+		0.04 to 0.1. Default = 20.\n
+		doplot (boolean): whether to make a hex-bin plot of the drawn samples or
+		not. Default = True.
 
 	Output:
 		samples (2D numpy array): the samples drawn from the KDE.
@@ -533,25 +535,16 @@ def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1
 	#pull samples from the kde
 	samples = kde.sample(int(n_samp))
 	
-	#only plot the first 10000 samples with a KDE, because otherwise this would take way too long
-	sns.kdeplot(samples[:10000][:, 0], 
-				samples[:10000][:, 1], 
-				shade = True,
-				cmap = 'Reds',
-				cbar = True)
-	
+	#plot the samples in a hexbin plot
+	if doplot:
+		plt.hexbin(samples[:, 0], samples[:, 1], bins = 'log', cmap = 'Reds')
+		plt.colorbar(label = 'Density of samples [logarithmic]')
 
-	# plt.hexbin(samples[:, 0], samples[:, 1], cmap='Reds')
-	# plt.colorbar()
-
-	plt.xlim((-0.65, 0.3))
-	plt.ylim((0.5, 2.1))
-
-	plt.xlabel('Y - J')
-	plt.ylabel('J - H')
-	plt.title('Distribution of samples in (Y-J, J-H) colour space')
-	plt.savefig('Samples_distribution_KDE.pdf', dpi = 300)
-	plt.show()
+		plt.xlabel('Y - J')
+		plt.ylabel('J - H')
+		plt.title('Distribution of samples in (Y-J, J-H) colour space')
+		plt.savefig('Samples_distribution_hex.pdf', dpi = 300)
+		plt.show()
 
 	return samples
 	
