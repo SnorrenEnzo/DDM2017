@@ -206,14 +206,34 @@ def ExtraTrees(Xtrain, Ytrain, Xtest, Ytest):
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
-def SVM(Xtrain, Ytrain, Xtest, Ytest):
+def SVM(Xtrain, Ytrain, Xtest, Ytest, kerneltype = 'rbf'):
 	"""
-	Apply the extra trees regressor
+	Apply a support vector machine regressor
 	"""
 	from sklearn.svm import SVR
 	print('\nSVM regressor:')
 
-	clf = SVR(epsilon = 0.02).fit(Xtrain, Ytrain)
+	clf = SVR(epsilon = 0.02, kernel = kerneltype).fit(Xtrain, Ytrain)
+	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
+
+	#find the training error
+	prediction = clf.predict(Xtrain)
+	Etrain = error(prediction, Ytrain)
+	print('Training error: {0}'.format(Etrain))
+
+	#find the test error
+	prediction = clf.predict(Xtest)
+	Etrain = error(prediction, Ytest)
+	print('Test error: {0}'.format(Etrain))
+
+def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest):
+	"""
+	Apply a nearest neighbour regressor
+	"""
+	from sklearn.neighbors import KNeighborsRegressor
+	print('\nNearest neighbour regressor:')
+
+	clf = KNeighborsRegressor(n_neighbors = 150, n_jobs = -1).fit(Xtrain, Ytrain)
 	print('Accuracy: {0}'.format(clf.score(Xtrain, Ytrain)))
 
 	#find the training error
@@ -567,8 +587,6 @@ Xtrain, Xtest, Ytrain, Ytest = loadData()
 
 print(f'Shape of training data: {Xtrain.shape}')
 
-print(Xtrain[0])
-
 # linear(Xtrain, Ytrain, Xtest, Ytest)
 # ridge(Xtrain, Ytrain, Xtest, Ytest)
 # lasso(Xtrain, Ytrain, Xtest, Ytest)
@@ -577,7 +595,8 @@ print(Xtrain[0])
 # Adaboost(Xtrain, Ytrain, Xtest, Ytest)
 # Bagging(Xtrain, Ytrain, Xtest, Ytest)
 # ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
-SVM(Xtrain, Ytrain, Xtest, Ytest)
+# SVM(Xtrain, Ytrain, Xtest, Ytest, kerneltype = 'linear')
+NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest)
 
 '''
 #run the Neural Network
