@@ -273,22 +273,18 @@ def NearestNeighbour(Xtrain, Ytrain, Xval, Yval, n_folds = 5, k_best = None):
 		k_best = k_range[np.argmin(errorlist)]
 
 		print('Best number of neighbours using median error: {0}'.format(k_range[np.argmin(med_err)]))
+		print('Best number of neighbours using mean error: {0}'.format(k_range[np.argmin(errorlist)]))
 
-		plt.plot(k_range, errorlist)
+		plt.plot(k_range, med_err, label = 'Median error')
+		plt.plot(k_range, errorlist, label = 'Mean error')
 		plt.xlabel('Number of neighbours')
-		plt.ylabel('Mean error')
-		plt.title('Nearest neighbour mean error for different number of neighbours')
-		plt.savefig('Nearest_neighbours_mean_error.pdf', dpi = 300)
+		plt.ylabel('Error')
+		plt.title('Nearest neighbour error for different number of neighbours')
+		plt.legend(loc = 'best')
+		plt.savefig('Nearest_neighbours_median_mean_error.pdf', dpi = 300)
 		plt.close()
 
-		plt.plot(k_range, med_err)
-		plt.xlabel('Number of neighbours')
-		plt.ylabel('Median error')
-		plt.title('Nearest neighbour median error for different number of neighbours')
-		plt.savefig('Nearest_neighbours_median_error.pdf', dpi = 300)
-		plt.close()
-
-	print(f'Number of neighbours with lowest cross validated test error: {k_best}')
+	print(f'Number of neighbours: {k_best}')
 
 	model = KNeighborsRegressor(n_neighbors = k_best, n_jobs = -1).fit(Xtrain, Ytrain)
 	print('Accuracy: {0}'.format(model.score(Xtrain, Ytrain)))
