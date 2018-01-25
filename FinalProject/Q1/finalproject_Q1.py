@@ -31,7 +31,7 @@ def createDB():
 	#the keys of the three tables of the database
 	#note that ID = identifier for every image (= catalogue)
 	posdata_keys = np.array(['StarID','FieldID','Ra','Dec','X','Y'])
-	fieldinfo_keys = np.array(['ID','FieldID','MJD','Airmass','Exptime','Filter'])
+	fieldinfo_keys = np.array(['ID','FieldID', 'Filename', 'MJD','Airmass','Exptime','Filter'])
 	fluxdata_keys = np.array(['StarID','ID','Flux1','dFlux1','Flux2', 'dFlux2','Flux3','dFlux3','Mag1','dMag1','Mag2','dMag2','Mag3','dMag3','Class'])
 	#the names of the tables
 	tablenames = np.array(['PosData','FieldInfo','FluxData'])
@@ -56,10 +56,11 @@ def createDB():
 	cur.execute(createtable) #run command
 	
 	
-	#create the table for the field info like date
+	#create the table for the field info like date and exposure time
 	createtable = """CREATE TABLE IF NOT EXISTS {0} 
 	(ID INT,
 	FieldID INT, 
+	Filename varchar(255),
 	MJD DOUBLE,
 	Airmass FLOAT,
 	Exptime INT,
@@ -497,7 +498,7 @@ def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1
 
 		#range of bandwidths to try
 		bwrange = np.linspace(0.04, 0.1, bw_range_size)
-		#the array which will store the bandwidth
+		#the array which will store the likelyhood
 		likelyhood = np.zeros(len(bwrange))
 		
 		print('Finding the best bandwidth...')
@@ -549,12 +550,14 @@ def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1
 	return samples
 	
 
-# createDB()
-# fillDataBase()
-# R3()
+createDB()
+fillDataBase()
+R1()
 
+'''
 #load the data as a pandas dataframe
 df = loadYJHdata()
 
 #input the data as a numpy array and receive the 100000 samples
 samples = make2D_KDE(np.array([df['Y - J'], df['J - H']]).T, bandwidth = 0.058947)
+'''
