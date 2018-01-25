@@ -251,7 +251,7 @@ def R1():
 				SELECT i.ID, COUNT(f.StarID)
 				FROM FluxData f JOIN FieldInfo i 
 				ON f.ID = i.ID
-				WHERE f.Flux1/f.dFlux1 > 5
+				WHERE f.Flux1/f.dFlux1 > 5 AND f.Class = -1
 				GROUP BY i.ID HAVING MJD BETWEEN 56800 AND 57300
 				"""
 
@@ -309,7 +309,7 @@ def R3():
 					SELECT AVG(f2.Flux1)
 					FROM FluxData f2
 					JOIN FieldInfo i2 ON f2.ID = i2.ID
-					WHERE f.StarID = f2.StarID
+					WHERE f.StarID = f2.StarID AND i2.Filter = 'Ks'
 					)) > (20 * f.dFlux1)
 				GROUP BY f.StarID
 				"""
@@ -430,7 +430,7 @@ def loadYJHdata(SN = 10):
 					JOIN FieldInfo i ON f.ID = i.ID
 					WHERE i.Filter = 'Y' AND f.Flux1/f.dFlux1 > {0}) Y
 				LEFT JOIN (
-					SELECT f.Mag1, f.StarID, i.FieldID
+					SELECT f.Mag1, f.StarID, i.FieldID, f.Class
 					FROM FluxData f 
 					JOIN FieldInfo i ON f.ID = i.ID
 					WHERE i.Filter = 'J' AND f.Flux1/f.dFlux1 > {0}
@@ -440,7 +440,7 @@ def loadYJHdata(SN = 10):
 					FROM FluxData f 
 					JOIN FieldInfo i ON f.ID = i.ID
 					WHERE i.Filter = 'H' AND f.Flux1/f.dFlux1 > {0}
-				) H On Y.StarID = H.StarID AND Y.FieldID = H.FieldID
+				) H On Y.StarID = H.StarID AND Y.FieldID = H.FieldID AND J.Class = -1
 				""".format(SN)
 
 		#run the query
@@ -497,7 +497,7 @@ def make2D_KDE(X, n_samp = 1e5, bandwidth = None, n_folds = 3, bw_train_size = 1
 		kf = KFold(n_splits = n_folds)
 
 		#range of bandwidths to try
-		bwrange = np.linspace(0.04, 0.1, bw_range_size)
+		bwrange = np.linspace(0.02, 0.08, bw_range_size)
 		#the array which will store the likelyhood
 		likelyhood = np.zeros(len(bwrange))
 		
@@ -554,10 +554,9 @@ createDB()
 fillDataBase()
 R1()
 
-'''
+
 #load the data as a pandas dataframe
-df = loadYJHdata()
+# df = loadYJHdata()
 
 #input the data as a numpy array and receive the 100000 samples
-samples = make2D_KDE(np.array([df['Y - J'], df['J - H']]).T, bandwidth = 0.058947)
-'''
+# samples = make2D_KDE(np.array([df['Y - J'], df['J - H']]).T, bandwidth = 0.0389474)
