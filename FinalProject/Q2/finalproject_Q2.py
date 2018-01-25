@@ -226,12 +226,16 @@ def SVM(Xtrain, Ytrain, Xtest, Ytest, kerneltype = 'rbf'):
 	Etrain = error(prediction, Ytest)
 	print('Test error: {0}'.format(Etrain))
 
-def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, n_folds = 4, k_best = None):
+def NearestNeighbour(Xtrain, Ytrain, Xval, Yval, n_folds = 5, k_best = None):
 	"""
-	Apply a nearest neighbour regressor
+	Apply a nearest neighbour regressor. Find the optimal number of neighbours
+	with cross validation and grid search.
 	"""
 	import matplotlib.pyplot as plt
 	from sklearn.neighbors import KNeighborsRegressor
+	import seaborn as sns
+
+	sns.set(font = 'Latin Modern Roman',rc = {'legend.frameon': True})
 	print('\nNearest neighbour regressor:')
 
 	#find the best number of neighbours if none is given
@@ -239,9 +243,11 @@ def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, n_folds = 4, k_best = None):
 		from sklearn.model_selection import KFold
 		kf = KFold(n_splits = n_folds)
 		#the range of values of the amount of neighbours to test
-		k_range = np.arange(3, 200, 2)
+		k_range = np.arange(3, 100, 1)
 		#the array which will store the error of each number of neighbours
 		errorlist = np.zeros(len(k_range))	
+		#array storing the median error
+		med_err = np.zeros(len(k_range))
 
 		print('Finding the best number of neighbours...')
 		for k, i in zip(k_range, np.arange(len(k_range))):
@@ -250,8 +256,8 @@ def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, n_folds = 4, k_best = None):
 			for train_i, test_i in kf.split(Xtrain, Ytrain):
 				#split the data into a train and test set 
 				Xtr, Xte = Xtrain[train_i], Xtrain[test_i]
-				Ytr, Yte = Xtrain[train_i], Ytrain[test_i]
-				model = KNeighborsRegressor(n_neighbors = k, n_jobs = -1).fit(Xtrain, Ytrain)
+				Ytr, Yte = Ytrain[train_i], Ytrain[test_i]
+				model = KNeighborsRegressor(n_neighbors = k, n_jobs = -1).fit(Xtr, Ytr)
 
 				# lhscore = model.score(Xte, Yte)
 				err = error(model.predict(Xte), Yte)
@@ -259,17 +265,27 @@ def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, n_folds = 4, k_best = None):
 				le = np.append(le, err)
 				
 			errorlist[i] = np.mean(le)
+			med_err[i] = np.median(le)
 
 			print('Iteration {0}, n_neighbours {1}, mean error: {2}'.format(i, k, errorlist[i]))
 
 		#find the best amount of neighbours. Usually this is 3
 		k_best = k_range[np.argmin(errorlist)]
 
+		print('Best number of neighbours using median error: {0}'.format(k_range[np.argmin(med_err)]))
+
 		plt.plot(k_range, errorlist)
 		plt.xlabel('Number of neighbours')
-		plt.ylabel('Error')
-		plt.title('Nearest neighbour error for different number of neighbours')
-		plt.savefig('Nearest_neighbours_error.png', dpi = 300)
+		plt.ylabel('Mean error')
+		plt.title('Nearest neighbour mean error for different number of neighbours')
+		plt.savefig('Nearest_neighbours_mean_error.pdf', dpi = 300)
+		plt.close()
+
+		plt.plot(k_range, med_err)
+		plt.xlabel('Number of neighbours')
+		plt.ylabel('Median error')
+		plt.title('Nearest neighbour median error for different number of neighbours')
+		plt.savefig('Nearest_neighbours_median_error.pdf', dpi = 300)
 		plt.close()
 
 	print(f'Number of neighbours with lowest cross validated test error: {k_best}')
@@ -282,10 +298,10 @@ def NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, n_folds = 4, k_best = None):
 	Etrain = error(prediction, Ytrain)
 	print('Training error: {0}'.format(Etrain))
 
-	#find the test error
-	prediction = model.predict(Xtest)
-	Etrain = error(prediction, Ytest)
-	print('Test error: {0}'.format(Etrain))
+	#find the validation set error
+	prediction = model.predict(Xval)
+	Etrain = error(prediction, Yval)
+	print('Validation error: {0}'.format(Etrain))
 
 
 #############################################################################
@@ -637,7 +653,7 @@ print(f'Shape of training data: {Xtrain.shape}')
 # Bagging(Xtrain, Ytrain, Xtest, Ytest)
 # ExtraTrees(Xtrain, Ytrain, Xtest, Ytest)
 # SVM(Xtrain, Ytrain, Xtest, Ytest, kerneltype = 'linear')
-NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest, k_best = 3)
+NearestNeighbour(Xtrain, Ytrain, Xtest, Ytest)
 
 '''
 #run the Neural Network
