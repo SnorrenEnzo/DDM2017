@@ -367,7 +367,7 @@ def R5(fieldid = 1):
 		query1 = """
 				SELECT Y.Mag1, Z.Mag1, J.Mag1, H.Mag1, Ks.AvgMag1
 				FROM (
-					SELECT f.Mag1, f.StarID, i.FieldID
+					SELECT f.Mag1, f.StarID, i.FieldID, f.Class
 					FROM FluxData f 
 					JOIN FieldInfo i ON f.ID = i.ID
 					WHERE i.Filter = 'Y' AND f.Flux1/f.dFlux1 > 30) Y
@@ -396,7 +396,7 @@ def R5(fieldid = 1):
 					WHERE i.Filter = 'Ks' AND f.Flux1/f.dFlux1 > 30
 					GROUP BY f.StarID, i.ID
 				) Ks On Y.StarID = Ks.StarID AND Y.FieldID = Ks.FieldID
-				WHERE Y.FieldID = {0}
+				WHERE Y.FieldID = {0} AND Y.Class = -1
 				""".format(fieldid)
 
 		#run the query
